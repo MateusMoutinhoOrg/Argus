@@ -8,8 +8,8 @@ type Errors struct {
 }
 
 var DefaultErrors = Errors{
-	MissingFlag:  "missing flag",
-	MissingArg:   "missing arg",
-	UnknowAction: "unknow action",
-	UnknowArg:    "unknow arg",
+	MissingFlag:  "missing flag :%s",
+	MissingArg:   "missing arg :%s",
+	UnknowAction: "unknow action :%s",
+	UnknowArg:    "unknow arg :%s",
 }
