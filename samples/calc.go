@@ -9,25 +9,40 @@ import (
 )
 
 type NumEntries struct {
-	a float64 `arg: "next" required: "true"`
-	b float64 `arg: "next" required: "true"`
+	nuns []float64 `type "ArrayArg" required: "true"`
 }
 
 func sum(entries NumEntries) int {
-	fmt.Println("sum is : ", entries.a+entries.b)
+	sum := 0.0
+	for _, v := range entries.nuns {
+		sum += v
+	}
+	fmt.Println("sum is : ", sum)
 	return 0
 }
 
 func sub(entries NumEntries) int {
-	fmt.Println("sub is : ", entries.a-entries.b)
+	sub := 0.0
+	for _, v := range entries.nuns {
+		sub -= v
+	}
+	fmt.Println("sub is : ", sub)
 	return 0
 }
 func mul(entries NumEntries) int {
-	fmt.Println("mul is : ", entries.a*entries.b)
+	mul := 0.0
+	for _, v := range entries.nuns {
+		mul *= v
+	}
+	fmt.Println("mul is : ", mul)
 	return 0
 }
 func div(entries NumEntries) int {
-	fmt.Println("div is : ", entries.a/entries.b)
+	div := entries.nuns[0]
+	for _, v := range entries.nuns {
+		div /= v
+	}
+	fmt.Println("div is : ", div)
 	return 0
 }
 
