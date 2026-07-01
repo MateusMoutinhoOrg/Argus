@@ -9,40 +9,50 @@ import (
 )
 
 type NumEntries struct {
-	nuns []float64 `type "ArrayArg" required: "true"`
+	Nums []float64 `type:"ArrayArg" start:"0" end:"-1" min_size:"1"`
 }
 
 func sum(entries NumEntries) int {
-	sum := 0.0
-	for _, v := range entries.nuns {
-		sum += v
+	result := 0.0
+	for _, v := range entries.Nums {
+		result += v
 	}
-	fmt.Println("sum is : ", sum)
+	fmt.Println("sum is : ", result)
 	return 0
 }
 
 func sub(entries NumEntries) int {
-	sub := 0.0
-	for _, v := range entries.nuns {
-		sub -= v
+	if len(entries.Nums) == 0 {
+		return 1
 	}
-	fmt.Println("sub is : ", sub)
+	result := entries.Nums[0]
+	for _, v := range entries.Nums[1:] {
+		result -= v
+	}
+	fmt.Println("sub is : ", result)
 	return 0
 }
 func mul(entries NumEntries) int {
-	mul := 0.0
-	for _, v := range entries.nuns {
-		mul *= v
+	result := 1.0
+	for _, v := range entries.Nums {
+		result *= v
 	}
-	fmt.Println("mul is : ", mul)
+	fmt.Println("mul is : ", result)
 	return 0
 }
 func div(entries NumEntries) int {
-	div := entries.nuns[0]
-	for _, v := range entries.nuns {
-		div /= v
+	if len(entries.Nums) == 0 {
+		return 1
 	}
-	fmt.Println("div is : ", div)
+	result := entries.Nums[0]
+	for _, v := range entries.Nums[1:] {
+		if v == 0 {
+			fmt.Println("error: division by zero")
+			return 1
+		}
+		result /= v
+	}
+	fmt.Println("div is : ", result)
 	return 0
 }
 
@@ -52,19 +62,19 @@ func main() {
 
 	props := Argus.GenerationProps{
 		Callbacks: []Argus.Callback{
-			Argus.Callback{
+			{
 				Starter:  "sum",
 				Callback: sum,
 			},
-			Argus.Callback{
+			{
 				Starter:  "sub",
 				Callback: sub,
 			},
-			Argus.Callback{
+			{
 				Starter:  "mul",
 				Callback: mul,
 			},
-			Argus.Callback{
+			{
 				Starter:  "div",
 				Callback: div,
 			},
