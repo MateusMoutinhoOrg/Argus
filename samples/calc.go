@@ -51,7 +51,6 @@ func main() {
 	argus := Argus.New(native.New())
 
 	props := Argus.GenerationProps{
-		Errors: Argus.DefaultErrors,
 		Callbacks: []Argus.Callback{
 			Argus.Callback{
 				Starter:  "sum",
