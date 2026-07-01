@@ -16,9 +16,48 @@ type GenerationProps struct {
 	Callbacks []Callback
 }
 
-func (l Lib) HandleCli(props GenerationProps) int {
+func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	if props.Errors == (Errors{}) {
 		props.Errors = DefaultErrors
+	}
+
+	// Validate all callbacks upfront (config/developer errors)
+	if len(props.Callbacks) == 0 {
+		return 1, fmt.Errorf("no callbacks provided")
+	}
+
+	for _, cb := range props.Callbacks {
+		if cb.Starter == "" {
+			return 1, fmt.Errorf("callback has an empty Starter")
+		}
+
+		if cb.Callback == nil {
+			return 1, fmt.Errorf("callback for '%s' is nil", cb.Starter)
+		}
+
+		cbValue := reflect.ValueOf(cb.Callback)
+		cbType := cbValue.Type()
+
+		if cbType.Kind() != reflect.Func {
+			return 1, fmt.Errorf("callback for '%s' is not a function", cb.Starter)
+		}
+
+		if cbType.NumIn() != 1 {
+			return 1, fmt.Errorf("callback for '%s' must accept exactly one argument, got %d", cb.Starter, cbType.NumIn())
+		}
+
+		paramType := cbType.In(0)
+		if paramType.Kind() != reflect.Struct {
+			return 1, fmt.Errorf("callback for '%s' parameter must be a struct, got %s", cb.Starter, paramType.Kind())
+		}
+
+		if cbType.NumOut() != 1 {
+			return 1, fmt.Errorf("callback for '%s' must return exactly one value, got %d", cb.Starter, cbType.NumOut())
+		}
+
+		if cbType.Out(0).Kind() != reflect.Int {
+			return 1, fmt.Errorf("callback for '%s' must return int, got %s", cb.Starter, cbType.Out(0).Kind())
+		}
 	}
 
 	args := l.deps.Args
@@ -26,7 +65,7 @@ func (l Lib) HandleCli(props GenerationProps) int {
 	// Need at least program name + command
 	if len(args) < 2 {
 		l.deps.Print(fmt.Sprintf(props.Errors.UnknowAction, "<none>"))
-		return 1
+		return 1, nil
 	}
 
 	command := args[1]
@@ -43,22 +82,12 @@ func (l Lib) HandleCli(props GenerationProps) int {
 
 	if matched == nil {
 		l.deps.Print(fmt.Sprintf(props.Errors.UnknowAction, command))
-		return 1
+		return 1, nil
 	}
 
 	// Use reflection to inspect the callback function
 	callbackValue := reflect.ValueOf(matched.Callback)
 	callbackType := callbackValue.Type()
-
-	if callbackType.Kind() != reflect.Func {
-		l.deps.Print(fmt.Sprintf("callback for '%s' is not a function", command))
-		return 1
-	}
-
-	if callbackType.NumIn() != 1 {
-		l.deps.Print(fmt.Sprintf("callback for '%s' must accept exactly one argument", command))
-		return 1
-	}
 
 	// Create the entries struct
 	entriesType := callbackType.In(0)
@@ -69,35 +98,26 @@ func (l Lib) HandleCli(props GenerationProps) int {
 	positional, err := l.populateEntries(entries, entriesType, commandArgs, props.Errors)
 	if err != "" {
 		l.deps.Print(err)
-		return 1
+		return 1, nil
 	}
 
 	// Second pass: populate positional arguments
 	errMsg := l.populatePositional(entries, entriesType, positional, props.Errors)
 	if errMsg != "" {
 		l.deps.Print(errMsg)
-		return 1
+		return 1, nil
 	}
 
 	// Validate required fields
 	errMsg = l.validateRequired(entries, entriesType, props.Errors)
 	if errMsg != "" {
 		l.deps.Print(errMsg)
-		return 1
+		return 1, nil
 	}
 
 	// Call the callback
-	if callbackType.NumOut() != 1 {
-		l.deps.Print(fmt.Sprintf("callback for '%s' must return exactly one int", command))
-		return 1
-	}
-
 	results := callbackValue.Call([]reflect.Value{entries})
-	if len(results) == 1 && results[0].Kind() == reflect.Int {
-		return int(results[0].Int())
-	}
-
-	return 0
+	return int(results[0].Int()), nil
 }
 
 // populateEntries extracts flags from the argument list and returns the remaining positional args.

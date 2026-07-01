@@ -81,6 +81,10 @@ func main() {
 		},
 	}
 
-	exitCode := argus.HandleCli(props)
+	exitCode, err := argus.HandleCli(props)
+	if err != nil {
+		fmt.Println("config error:", err)
+		os.Exit(1)
+	}
 	os.Exit(exitCode)
 }
