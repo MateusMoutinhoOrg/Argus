@@ -12,12 +12,8 @@ func Print(s string) {
 }
 func New() Deps.Deps {
 
-	var args []string
-	for _, arg := range os.Args {
-		args = append(args, arg)
-	}
 	return Deps.Deps{
-		Args:  args,
+		Args:  os.Args,
 		Print: Print,
 	}
 }
