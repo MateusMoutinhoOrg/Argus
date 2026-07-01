@@ -1,113 +1,295 @@
-entries of callbacks must have the type anotations to allow the parser 
-indentify cli elements
+# CLI Entry Binding — Public API Reference
 
-### Args
-Args can be: "number","next" or "ArrayArg", if is set to "next" it will get the next unnused unflaged arg.
+Command callbacks receive a single **entries struct**. Each field is bound to a CLI
+element (positional argument or flag) through its **struct tag**. The parser reads
+these tags to know *what* to extract, *where* to find it, and *how* to validate it.
 
-#### Args "next":
-~~~go 
+> **Tag syntax matters.** Tags must follow Go's canonical form: `key:"value"` with
+> **no space** after the colon and single spaces between pairs. `type: "Flag"` (with a
+> space) is silently ignored by `reflect.StructTag.Get` and flagged by `go vet`. Use
+> `type:"Flag"`.
 
-type NumEntries struct {
-	a float64 `type: "nextArg" required: "true"`
-	b float64 `type: "nextArg" required: "true"`
+```go
+type Entries struct {
+    Field Type `type:"..." <attr>:"..." ...`
+}
+```
+
+---
+
+## Entry types
+
+The `type` attribute selects how the field is populated.
+
+| `type`     | Source                                         | Field kind      |
+|------------|------------------------------------------------|-----------------|
+| `Arg`      | Positional argument at a fixed index           | scalar          |
+| `NextArg`  | Next unconsumed, unflagged positional argument | scalar          |
+| `ArrayArg` | A slice of positional arguments                | slice           |
+| `Flag`     | Named flag with a value (`--port 8080`)        | scalar          |
+| `ArrayFlag`| Named flag repeated to build a slice           | slice           |
+
+A `Flag` bound to a `bool` field is a **presence flag** — no value is read; the field
+becomes `true` when any identifier appears. See *Required and defaults*.
+
+## Tag attributes
+
+| Attribute     | Applies to                | Meaning                                                       |
+|---------------|---------------------------|--------------------------------------------------------------|
+| `type`        | all (required)            | Entry type from the table above                              |
+| `position`    | `Arg`                     | Index among positional args (see *Open questions*)           |
+| `identifiers` | `Flag`, `ArrayFlag`       | Comma-separated aliases, e.g. `"-p,--port"`                   |
+| `required`    | all                       | `"true"` / `"false"` — **defaults to `"true"`**              |
+| `default`     | scalars                   | Fallback value when the entry is absent; implies optional    |
+| `start`,`end` | `ArrayArg`                | Slice bounds over positional args; `-1` = to the end         |
+| `min_size`    | `ArrayArg`, `ArrayFlag`   | Minimum element count for validation                         |
+| `max_size`    | `ArrayArg`, `ArrayFlag`   | Maximum element count; `-1` = unbounded                      |
+| `help`        | all                       | Description text (usable for generated `--help`)             |
+
+## Supported field types
+
+Scalars: `string`, `int`, `int64`, `float64`, `bool`.
+Slices of any scalar for the `Array*` types: `[]string`, `[]int`, `[]float64`, …
+
+Parsing failures (e.g. a non-numeric value bound to `float64`) should surface as a
+usage error rather than a panic.
+
+---
+
+## Required and defaults
+
+Every entry is **required by default** (`required:"true"`). A missing required entry
+produces a usage error.
+
+An entry becomes **optional** in either of two ways:
+
+- `required:"false"` — absence is allowed; the field takes its zero value.
+- `default:"<value>"` — absence is allowed and the field takes `<value>`. Declaring a
+  `default` **implies `required:"false"`**, so you never need both.
+
+`bool` fields bound with `type:"Flag"` are presence flags and are therefore always
+optional: present → `true`, absent → `false`.
+
+```go
+type ServeEntries struct {
+    Host string `type:"Flag" identifiers:"--host"`                    // required
+    Port int    `type:"Flag" identifiers:"-p,--port" default:"8080"`  // optional -> 8080
+    TLS  bool   `type:"Flag" identifiers:"--tls"`                     // presence, optional
+}
+```
+
+```sh
+serve --host 0.0.0.0
+# Host="0.0.0.0", Port=8080, TLS=false
+
+serve --host 0.0.0.0 --port 9090 --tls
+# Host="0.0.0.0", Port=9090, TLS=true
+```
+
+---
+
+## Positional arguments
+
+### `NextArg` — sequential consumption
+
+Each `NextArg` field consumes the next positional argument that hasn't been claimed
+by a flag or a previous entry, in declaration order.
+
+```go
+type AddEntries struct {
+    A float64 `type:"NextArg"`
+    B float64 `type:"NextArg"`
 }
 
-func sum(entries NumEntries) int {
-
-    fmt.Println(entries.a + entries.b)
-	return 0
+func sum(e AddEntries) int {
+    fmt.Println(e.A + e.B)
+    return 0
 }
-~~~
-in cli :
-~~~sh
-calc add 10 20 
+```
 
-~~~
+```sh
+calc add 10 20
+# A=10, B=20  -> 30
+```
 
-#### Numerical Args:
+### `Arg` — fixed position
 
-~~~go 
+Binds to a specific positional index. Useful when order is fixed but you want to
+skip or reorder.
 
-type NumEntries struct {
-	a float64 `type: "Arg"  position: "2"  required: "true"`
-	b float64 `type: "Arg"  position: "3"  required: "true"`
-    c float64 `type: "Arg"  position: "4"  required: "true"`
+```go
+type SumEntries struct {
+    A float64 `type:"Arg" position:"0"`
+    B float64 `type:"Arg" position:"1"`
+    C float64 `type:"Arg" position:"2"`
 }
 
-func sum(entries NumEntries) int {
-
-    fmt.Println(entries.a + entries.b + entries.c)
-	return 0
+func sum(e SumEntries) int {
+    fmt.Println(e.A + e.B + e.C)
+    return 0
 }
-~~~
-in cli :
-~~~sh
+```
+
+```sh
 calc add 10 20 39
-~~~
+# A=10, B=20, C=39  -> 69
+```
 
-#### Array Args 
+> `position` here is shown **relative to the command's positional args** (0-based).
+> The original draft used absolute `argv` indices starting at `2`; see *Open questions*.
 
-Array args work like slice where you can set start and end (-1 is infinity)
+### `ArrayArg` — slice of positionals
 
-~~~go 
+Collects a contiguous range of positional args as a slice. `start`/`end` behave like
+a Go slice bound; `end:"-1"` means "until the last positional".
 
-type ArrayEntries struct {
-	nums []int `type: "ArrayArg" start: "0" end: "2" required: "true"`
+```go
+type PrintEntries struct {
+    Nums []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1"`
 }
 
-func test_func(entries ArrayEntries) int {
-
-    for _, n := range entries.nums {
+func printAll(e PrintEntries) int {
+    for _, n := range e.Nums {
         fmt.Println(n)
     }
-	return 0
+    return 0
 }
-~~~
+```
 
-bash sample:
+```sh
+calc print 3 7 11 42
+# Nums = [3 7 11 42]
+```
 
-### Flags
-flags can also be retrived 
+A bounded window (`start:"0" end:"2"`) would capture only the first two positionals.
 
-~~~go 
+---
 
-type NumEntries struct {
-	a float64 `type: "flag" identifiers:"-a,--a" required:"true"`
-	b float64 `type: "flag" identifiers:"-b,--b" required:"true"`
-}
+## Flags
 
-func sum(entries NumEntries) int {
+### `Flag` — named value
 
-    fmt.Println(entries.a + entries.b) 
-	return 0
-}
-~~~
-in cli :
-~~~sh
-calc add --a 10  --b 20 
-
-~~~
-
-Flags can also be arrays
-
-~~~go 
-
-type NumEntries struct {
-	nums []float64 `type: "ArrayFlag" identifiers:"-a,--a" required: "true" min_size:"1" max_size:"-1"`
+```go
+type AddEntries struct {
+    A float64 `type:"Flag" identifiers:"-a,--a"`
+    B float64 `type:"Flag" identifiers:"-b,--b"`
 }
 
-func test(entries NumEntries) int {
-  
-  for _,n := range entries.nums {
-      fmt.Println(n)
-  }
-  
-  return 0 
+func sum(e AddEntries) int {
+    fmt.Println(e.A + e.B)
+    return 0
 }
-~~~
-in cli :
-~~~
+```
+
+```sh
+calc add --a 10 --b 20
+# also accepted: calc add -a 10 -b 20
+```
+
+### Boolean (presence) flags
+
+A `bool` field with `type:"Flag"` reads no value — it is `true` when present. Because
+absence maps to `false`, these are always optional.
+
+```go
+type BuildEntries struct {
+    Verbose bool   `type:"Flag" identifiers:"-v,--verbose"`
+    Output  string `type:"Flag" identifiers:"-o,--output" default:"a.out"`
+}
+
+func build(e BuildEntries) int {
+    if e.Verbose {
+        fmt.Println("building ->", e.Output)
+    }
+    return 0
+}
+```
+
+```sh
+myc build --verbose -o bin/app
+# Verbose=true, Output="bin/app"
+myc build
+# Verbose=false, Output="a.out"
+```
+
+### `ArrayFlag` — repeated flag
+
+The flag may appear multiple times; each occurrence appends one element.
+
+```go
+type CollectEntries struct {
+    Nums []float64 `type:"ArrayFlag" identifiers:"-a,--a" min_size:"1" max_size:"-1"`
+}
+
+func collect(e CollectEntries) int {
+    for _, n := range e.Nums {
+        fmt.Println(n)
+    }
+    return 0
+}
+```
+
+```sh
 test -a 1 -a 2 -a 3 -a 4 -a 5
+# Nums = [1 2 3 4 5]
+```
 
-~~~
+---
 
+## Combining args and flags
+
+Positional and flag entries can coexist in one struct. Flags are extracted first,
+then the remaining tokens are treated as positionals.
+
+```go
+type CopyEntries struct {
+    Src   string `type:"NextArg"`
+    Dst   string `type:"NextArg"`
+    Force bool   `type:"Flag" identifiers:"-f,--force"`
+}
+```
+
+```sh
+mytool copy src.txt dst.txt --force
+# Src="src.txt", Dst="dst.txt", Force=true
+```
+
+---
+
+## Return value
+
+The callback returns an `int` used as the process **exit code** (`0` = success).
+Non-zero values propagate to the shell.
+
+---
+
+## Validation summary
+
+- Entries are **required by default**; a missing required entry → usage error.
+- `required:"false"` or a `default` makes an entry optional.
+- Optional entry absent: with `default` → default applied; without → zero value
+  (`bool` → `false`).
+- Value fails to parse into the field type → usage error.
+- `min_size` / `max_size` violated on an array entry → usage error.
+
+---
+
+## Open questions / design decisions
+
+These are unresolved in the current draft and worth pinning down before locking the API:
+
+1. **`position` base.** The draft used absolute `argv` indices (`2`, `3`, `4` for
+   `calc add 10 20 39`), which couples the index to the subcommand depth. Recommend
+   making `position` **relative to the current command's positional args** (0- or
+   1-based) so the same struct works regardless of nesting.
+2. **Subcommand mapping.** Nothing here shows how `calc add` resolves to `sum`. Where
+   is the command/subcommand tree declared, and how do callbacks attach to it?
+3. **Flag value syntax.** Are both `--port 8080` and `--port=8080` accepted? Document
+   the supported forms.
+4. **Negative numbers vs flags.** With `-a -5`, is `-5` a value or an unknown flag?
+   Define the disambiguation rule (e.g. treat `-<digit>` as a value).
+5. **Unexported fields.** The examples use lowercase fields. Reflection can't read
+   these; AST/codegen can. Confirm which path the parser takes, since it dictates
+   whether fields must be exported.
+6. **Repeated-flag vs space-separated arrays.** `ArrayFlag` shows `-a 1 -a 2`. Is
+   `-a 1 2 3` also valid, or is repetition the only accepted form?
