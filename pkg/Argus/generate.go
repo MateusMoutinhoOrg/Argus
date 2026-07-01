@@ -1,17 +1,15 @@
 package Argus
 
-type Errors string {
-	MissingFlag string 
-	MissingArg string 
-	UnknowAction string 
-	UnknowArg string 
+type Callback struct {
+	Starter  string
+	Callback func(entries any)
 }
-type GenerationProps string{
-
-
+type GenerationProps struct {
+	Errors    Errors
+	Callbacks []Callback
 }
 
-func (l Lib) Generate(GenerationProps props) int {
+func (l Lib) Generate(props GenerationProps) int {
 
 	//return 0 on fail
 	return 0
