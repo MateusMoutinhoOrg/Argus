@@ -1,4 +1,4 @@
-package deps
+package Deps
 
 type Deps struct {
 	Args  []string

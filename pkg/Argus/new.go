@@ -1,13 +1,13 @@
-package argus
+package Argus
 
 import (
-	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
+	Deps "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type Lib struct {
-	deps deps.Deps
+	deps Deps.Deps
 }
 
-func New(d deps.Deps) Lib {
+func New(d Deps.Deps) Lib {
 	return Lib{deps: d}
 }

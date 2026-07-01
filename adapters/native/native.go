@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
+	Deps "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 func Print(s string) {
 	fmt.Println(s)
 }
-func New() deps.Deps {
+func New() Deps.Deps {
 
 	var args []string
 	for _, arg := range os.Args {
 		args = append(args, arg)
 	}
-	return deps.Deps{
-		Args:  os.Args,
+	return Deps.Deps{
+		Args:  args,
 		Print: Print,
 	}
 }
