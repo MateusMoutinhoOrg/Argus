@@ -9,8 +9,8 @@ import (
 )
 
 type NumEntries struct {
-	a float64 `arg: "next"`
-	b float64 `arg: "next"`
+	a float64 `arg: "next" required: "true"`
+	b float64 `arg: "next" required: "true"`
 }
 
 func sum(entries NumEntries) {
