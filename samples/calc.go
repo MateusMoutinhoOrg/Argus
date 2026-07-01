@@ -13,18 +13,22 @@ type NumEntries struct {
 	b float64 `arg: "next" required: "true"`
 }
 
-func sum(entries NumEntries) {
+func sum(entries NumEntries) int {
 	fmt.Println("sum is : ", entries.a+entries.b)
+	return 0
 }
 
-func sub(entries NumEntries) {
+func sub(entries NumEntries) int {
 	fmt.Println("sub is : ", entries.a-entries.b)
+	return 0
 }
-func mul(entries NumEntries) {
+func mul(entries NumEntries) int {
 	fmt.Println("mul is : ", entries.a*entries.b)
+	return 0
 }
-func div(entries NumEntries) {
+func div(entries NumEntries) int {
 	fmt.Println("div is : ", entries.a/entries.b)
+	return 0
 }
 
 func main() {
@@ -53,6 +57,6 @@ func main() {
 		},
 	}
 
-	exitCode := argus.Generate(props)
+	exitCode := argus.HandleCli(props)
 	os.Exit(exitCode)
 }
