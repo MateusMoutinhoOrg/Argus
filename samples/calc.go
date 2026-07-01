@@ -8,5 +8,6 @@ import (
 func main() {
 
 	argus := Argus.New(native.New())
+	argus.Generate()
 
 }
