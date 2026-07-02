@@ -16,13 +16,13 @@ type Callback struct {
 type GenerationProps struct {
 	Name        string
 	Description string
-	Errors      Errors
+	Messages    Messages
 	Callbacks   []Callback
 }
 
 func (l Lib) HandleCli(props GenerationProps) (int, error) {
-	if props.Errors == (Errors{}) {
-		props.Errors = DefaultErrors
+	if props.Messages.MissingFlag == nil {
+		props.Messages = DefaultMessages
 	}
 
 	// Validate all callbacks upfront (config/developer errors)
@@ -68,7 +68,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 
 	// Need at least program name + command
 	if len(args) < 2 {
-		l.deps.Print(fmt.Sprintf(props.Errors.UnknowAction, "<none>"))
+		l.deps.Print(props.Messages.UnknowAction(""))
 		return 1, nil
 	}
 
@@ -99,7 +99,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	}
 
 	if matched == nil {
-		l.deps.Print(fmt.Sprintf(props.Errors.UnknowAction, command))
+		l.deps.Print(props.Messages.UnknowAction(command))
 		return 1, nil
 	}
 
@@ -120,21 +120,21 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	entries := entriesPtr.Elem()
 
 	// First pass: extract flags from args, collect remaining as positional
-	positional, err := l.populateEntries(entries, entriesType, commandArgs, props.Errors)
+	positional, err := l.populateEntries(entries, entriesType, commandArgs, props.Messages)
 	if err != "" {
 		l.deps.Print(err)
 		return 1, nil
 	}
 
 	// Second pass: populate positional arguments
-	errMsg := l.populatePositional(entries, entriesType, positional, props.Errors)
+	errMsg := l.populatePositional(entries, entriesType, positional, props.Messages)
 	if errMsg != "" {
 		l.deps.Print(errMsg)
 		return 1, nil
 	}
 
 	// Validate required fields
-	errMsg = l.validateRequired(entries, entriesType, props.Errors)
+	errMsg = l.validateRequired(entries, entriesType, props.Messages)
 	if errMsg != "" {
 		l.deps.Print(errMsg)
 		return 1, nil
@@ -146,7 +146,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 }
 
 // populateEntries extracts flags from the argument list and returns the remaining positional args.
-func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, args []string, errs Errors) ([]string, string) {
+func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, args []string, msgs Messages) ([]string, string) {
 	positional := []string{}
 	consumed := make(map[int]bool)
 
@@ -199,7 +199,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						if args[j] == id {
 							consumed[j] = true
 							consumed[j+1] = true
-							errMsg := setFieldValue(entries.Field(i), field.Type, args[j+1], field.Name, errs)
+							errMsg := setFieldValue(entries.Field(i), field.Type, args[j+1], field.Name, msgs)
 							if errMsg != "" {
 								return nil, errMsg
 							}
@@ -216,7 +216,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 					// Apply default if present
 					defaultVal := field.Tag.Get("default")
 					if defaultVal != "" {
-						setFieldValue(entries.Field(i), field.Type, defaultVal, field.Name, errs)
+						setFieldValue(entries.Field(i), field.Type, defaultVal, field.Name, msgs)
 					}
 				}
 			}
@@ -241,7 +241,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						consumed[j] = true
 						consumed[j+1] = true
 						elem := reflect.New(elemType).Elem()
-						errMsg := setFieldValue(elem, elemType, args[j+1], field.Name, errs)
+						errMsg := setFieldValue(elem, elemType, args[j+1], field.Name, msgs)
 						if errMsg != "" {
 							return nil, errMsg
 						}
@@ -276,7 +276,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 }
 
 // populatePositional fills Arg, NextArg, and ArrayArg fields from positional arguments.
-func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type, positional []string, errs Errors) string {
+func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type, positional []string, msgs Messages) string {
 	nextArgIdx := 0
 
 	for i := 0; i < entriesType.NumField(); i++ {
@@ -287,14 +287,14 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 		case "Arg":
 			posStr := field.Tag.Get("position")
 			if posStr == "" {
-				return fmt.Sprintf(errs.MissingArg, field.Name+" (missing position tag)")
+				return msgs.MissingArg(field.Name + " (missing position tag)")
 			}
 			pos, err := strconv.Atoi(posStr)
 			if err != nil {
-				return fmt.Sprintf(errs.MissingArg, field.Name+" (invalid position)")
+				return msgs.MissingArg(field.Name + " (invalid position)")
 			}
 			if pos < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos], field.Name, errs)
+				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos], field.Name, msgs)
 				if errMsg != "" {
 					return errMsg
 				}
@@ -302,7 +302,7 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 
 		case "NextArg":
 			if nextArgIdx < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[nextArgIdx], field.Name, errs)
+				errMsg := setFieldValue(entries.Field(i), field.Type, positional[nextArgIdx], field.Name, msgs)
 				if errMsg != "" {
 					return errMsg
 				}
@@ -345,7 +345,7 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 
 			for j := start; j < end; j++ {
 				elem := reflect.New(elemType).Elem()
-				errMsg := setFieldValue(elem, elemType, positional[j], field.Name, errs)
+				errMsg := setFieldValue(elem, elemType, positional[j], field.Name, msgs)
 				if errMsg != "" {
 					return errMsg
 				}
@@ -368,7 +368,7 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 }
 
 // validateRequired checks that all required fields have been populated.
-func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, errs Errors) string {
+func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, msgs Messages) string {
 	for i := 0; i < entriesType.NumField(); i++ {
 		field := entriesType.Field(i)
 		entryType := field.Tag.Get("type")
@@ -392,9 +392,9 @@ func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, e
 		if fieldVal.IsZero() {
 			switch entryType {
 			case "Flag", "ArrayFlag":
-				return fmt.Sprintf(errs.MissingFlag, field.Name)
+				return msgs.MissingFlag(field.Name)
 			default:
-				return fmt.Sprintf(errs.MissingArg, field.Name)
+				return msgs.MissingArg(field.Name)
 			}
 		}
 	}
@@ -403,20 +403,20 @@ func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, e
 }
 
 // setFieldValue parses the string value and sets it on the given reflect.Value.
-func setFieldValue(field reflect.Value, fieldType reflect.Type, value string, fieldName string, errs Errors) string {
+func setFieldValue(field reflect.Value, fieldType reflect.Type, value string, fieldName string, msgs Messages) string {
 	switch fieldType.Kind() {
 	case reflect.String:
 		field.SetString(value)
 	case reflect.Int, reflect.Int64:
 		n, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Sprintf(errs.NaN, strings.ToLower(fieldName))
+			return msgs.NaN(strings.ToLower(fieldName))
 		}
 		field.SetInt(n)
 	case reflect.Float64:
 		f, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return fmt.Sprintf(errs.NaN, strings.ToLower(fieldName))
+			return msgs.NaN(strings.ToLower(fieldName))
 		}
 		field.SetFloat(f)
 	case reflect.Bool:

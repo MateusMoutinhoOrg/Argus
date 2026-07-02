@@ -10,7 +10,7 @@ import (
 
 // This sample demonstrates how to customize the error messages
 // displayed when the CLI receives invalid input. Argus uses the
-// Errors struct with Go format strings (%s) so you can fully
+// Messages struct with function fields so you can fully
 // localize or restyle the messages.
 
 type GreetEntries struct {
@@ -46,15 +46,29 @@ func main() {
 	argus := Argus.New(native.New())
 
 	// Portuguese error messages as an example of localization
-	errosPt := Argus.Errors{
-		MissingFlag:  "Erro: a flag obrigatória '%s' não foi informada.",
-		MissingArg:   "Erro: o argumento obrigatório '%s' não foi informado.",
-		UnknowAction: "Erro: ação desconhecida '%s'. Use 'greet' ou 'add'.",
-		UnknowArg:    "Erro: argumento inválido '%s'.",
+	errosPt := Argus.Messages{
+		MissingFlag: func(flag string) string {
+			return fmt.Sprintf("Erro: a flag obrigatória '%s' não foi informada.", flag)
+		},
+		MissingArg: func(arg string) string {
+			return fmt.Sprintf("Erro: o argumento obrigatório '%s' não foi informado.", arg)
+		},
+		UnknowAction: func(action string) string {
+			if action == "" {
+				return "Erro: ação (argv[1]) não informada. Use 'greet' ou 'add'."
+			}
+			return fmt.Sprintf("Erro: ação desconhecida '%s'. Use 'greet' ou 'add'.", action)
+		},
+		UnknowArg: func(arg string) string {
+			return fmt.Sprintf("Erro: argumento inválido '%s'.", arg)
+		},
+		NaN: func(flag string) string {
+			return fmt.Sprintf("Erro: flag %s não é um número.", flag)
+		},
 	}
 
 	props := Argus.GenerationProps{
-		Errors: errosPt,
+		Messages: errosPt,
 		Callbacks: []Argus.Callback{
 			{Starter: "greet", Callback: greet, Description: "Greet a user by name"},
 			{Starter: "add", Callback: add, Description: "Add two numbers"},
