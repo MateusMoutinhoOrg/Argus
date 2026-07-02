@@ -12,8 +12,8 @@ import (
 // Each NextArg field binds to the next unclaimed positional argument
 // in the order the fields are declared.
 type NextArgEntries struct {
-	Src  string `type:"NextArg"`
-	Dest string `type:"NextArg"`
+	Src  string `type:"NextArg" description:"source file path"`
+	Dest string `type:"NextArg" description:"destination file path"`
 }
 
 func copyFile(e NextArgEntries) int {
@@ -24,9 +24,9 @@ func copyFile(e NextArgEntries) int {
 // FixedArgEntries demonstrates fixed-position positional arguments.
 // Each Arg field binds to a specific positional index via the position tag.
 type FixedArgEntries struct {
-	Filename string `type:"Arg" position:"0"`
-	LineNum  int    `type:"Arg" position:"1"`
-	ColNum   int    `type:"Arg" position:"2" required:"false"`
+	Filename string `type:"Arg" position:"0" description:"path to the file to open"`
+	LineNum  int    `type:"Arg" position:"1" description:"line number to navigate to"`
+	ColNum   int    `type:"Arg" position:"2" required:"false" description:"column number (optional)"`
 }
 
 func gotoLine(e FixedArgEntries) int {

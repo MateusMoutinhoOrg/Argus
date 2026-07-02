@@ -13,7 +13,7 @@ import (
 //   - start:"0" end:"-1" means capture ALL positional args.
 //   - min_size:"2" enforces at least 2 files.
 type ArrayArgEntries struct {
-	Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2"`
+	Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2" description:"list of files to merge"`
 }
 
 func merge(e ArrayArgEntries) int {
@@ -27,7 +27,7 @@ func merge(e ArrayArgEntries) int {
 // BoundedArrayEntries demonstrates a bounded ArrayArg window.
 //   - start:"0" end:"2" captures only the first 2 positional args.
 type BoundedArrayEntries struct {
-	Pair []string `type:"ArrayArg" start:"0" end:"2" min_size:"2" max_size:"2"`
+	Pair []string `type:"ArrayArg" start:"0" end:"2" min_size:"2" max_size:"2" description:"two files to swap"`
 }
 
 func swap(e BoundedArrayEntries) int {
@@ -40,7 +40,7 @@ func swap(e BoundedArrayEntries) int {
 //   - min_size:"1" requires at least one tag.
 //   - max_size:"-1" means unbounded.
 type ArrayFlagEntries struct {
-	Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1" max_size:"-1"`
+	Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1" max_size:"-1" description:"labels to apply (can be repeated)"`
 }
 
 func tag(e ArrayFlagEntries) int {
@@ -53,7 +53,7 @@ func tag(e ArrayFlagEntries) int {
 
 // ArrayFlagNumEntries demonstrates ArrayFlag with numeric types.
 type ArrayFlagNumEntries struct {
-	Scores []float64 `type:"ArrayFlag" identifiers:"-s,--score" min_size:"1"`
+	Scores []float64 `type:"ArrayFlag" identifiers:"-s,--score" min_size:"1" description:"numeric scores (can be repeated)"`
 }
 
 func average(e ArrayFlagNumEntries) int {

@@ -282,16 +282,17 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 	for i := 0; i < entriesType.NumField(); i++ {
 		field := entriesType.Field(i)
 		entryType := field.Tag.Get("type")
+		description := field.Tag.Get("description")
 
 		switch entryType {
 		case "Arg":
 			posStr := field.Tag.Get("position")
 			if posStr == "" {
-				return msgs.MissingArg(field.Name + " (missing position tag)")
+				return msgs.MissingArg(field.Name+" (missing position tag)", description, "")
 			}
 			pos, err := strconv.Atoi(posStr)
 			if err != nil {
-				return msgs.MissingArg(field.Name + " (invalid position)")
+				return msgs.MissingArg(field.Name+" (invalid position)", description, posStr)
 			}
 			if pos < len(positional) {
 				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos], field.Name, msgs)
@@ -390,15 +391,17 @@ func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, m
 		// Check if field is at its zero value
 		fieldVal := entries.Field(i)
 		if fieldVal.IsZero() {
+			description := field.Tag.Get("description")
 			switch entryType {
 			case "Flag", "ArrayFlag":
 				identifiers := field.Tag.Get("identifiers")
 				if identifiers != "" {
-					return msgs.MissingFlag(strings.Split(identifiers, ",")[0])
+					return msgs.MissingFlag(strings.Split(identifiers, ",")[0], description)
 				}
-				return msgs.MissingFlag(field.Name)
+				return msgs.MissingFlag(field.Name, description)
 			default:
-				return msgs.MissingArg(field.Name)
+				position := field.Tag.Get("position")
+				return msgs.MissingArg(field.Name, description, position)
 			}
 		}
 	}
@@ -462,7 +465,8 @@ func (l Lib) printGlobalHelp(props GenerationProps) {
 	}
 
 	if props.Description != "" {
-		l.deps.Print(fmt.Sprintf("%s\n", props.Description))
+		l.deps.Print(props.Description)
+		l.deps.Print("")
 	}
 
 	l.deps.Print("USAGE:")
@@ -498,7 +502,8 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 	}
 
 	if cb.Description != "" {
-		l.deps.Print(fmt.Sprintf("%s\n", cb.Description))
+		l.deps.Print(cb.Description)
+		l.deps.Print("")
 	}
 
 	l.deps.Print("USAGE:")
@@ -508,9 +513,11 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 	entriesType := cbValue.Type().In(0)
 
 	type fieldInfo struct {
-		name   string
-		desc   string
-		isFlag bool
+		name        string
+		desc        string
+		isFlag      bool
+		required    bool
+		identifiers string
 	}
 
 	var infos []fieldInfo
@@ -522,10 +529,17 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 		entryType := field.Tag.Get("type")
 		helpMsg := field.Tag.Get("help")
 		if helpMsg == "" {
+			helpMsg = field.Tag.Get("description")
+		}
+		if helpMsg == "" {
 			helpMsg = "No description"
 		}
 
-		info := fieldInfo{desc: helpMsg}
+		required := field.Tag.Get("required")
+		defaultVal := field.Tag.Get("default")
+		isRequired := required != "false" && defaultVal == "" && !(entryType == "Flag" && field.Type.Kind() == reflect.Bool)
+
+		info := fieldInfo{desc: helpMsg, required: isRequired}
 
 		if entryType == "Flag" || entryType == "ArrayFlag" {
 			identifiers := field.Tag.Get("identifiers")
@@ -533,6 +547,7 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 				continue
 			}
 			info.name = identifiers
+			info.identifiers = identifiers
 			info.isFlag = true
 			if len(identifiers) > maxFlagLen {
 				maxFlagLen = len(identifiers)
@@ -563,8 +578,12 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 		l.deps.Print("ARGUMENTS:")
 		for _, info := range infos {
 			if !info.isFlag {
+				required := ""
+				if info.required {
+					required = " (required)"
+				}
 				padding := strings.Repeat(" ", maxArgLen-len(info.name)+2)
-				l.deps.Print(fmt.Sprintf("  %s%s%s", info.name, padding, info.desc))
+				l.deps.Print(fmt.Sprintf("  %s%s%s%s", info.name, padding, info.desc, required))
 			}
 		}
 		if hasFlags {
@@ -576,8 +595,12 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 		l.deps.Print("FLAGS:")
 		for _, info := range infos {
 			if info.isFlag {
+				required := ""
+				if info.required {
+					required = " (required)"
+				}
 				padding := strings.Repeat(" ", maxFlagLen-len(info.name)+2)
-				l.deps.Print(fmt.Sprintf("  %s%s%s", info.name, padding, info.desc))
+				l.deps.Print(fmt.Sprintf("  %s%s%s%s", info.name, padding, info.desc, required))
 			}
 		}
 	}

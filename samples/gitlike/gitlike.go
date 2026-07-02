@@ -25,8 +25,8 @@ func initRepo(e InitEntries) int {
 // --- clone: NextArg + optional Flag ---
 
 type CloneEntries struct {
-	URL   string `type:"NextArg"`
-	Depth int    `type:"Flag" identifiers:"--depth" required:"false"`
+	URL   string `type:"NextArg" description:"repository URL to clone"`
+	Depth int    `type:"Flag" identifiers:"--depth" required:"false" description:"depth of the shallow clone"`
 }
 
 func clone(e CloneEntries) int {
@@ -40,9 +40,9 @@ func clone(e CloneEntries) int {
 // --- commit: all flags, some required, some optional ---
 
 type CommitEntries struct {
-	Message string `type:"Flag" identifiers:"-m,--message"`
-	Author  string `type:"Flag" identifiers:"--author" default:"current user"`
-	Amend   bool   `type:"Flag" identifiers:"--amend"`
+	Message string `type:"Flag" identifiers:"-m,--message" description:"commit message"`
+	Author  string `type:"Flag" identifiers:"--author" default:"current user" description:"commit author name"`
+	Amend   bool   `type:"Flag" identifiers:"--amend" description:"amend the previous commit"`
 }
 
 func commit(e CommitEntries) int {
@@ -57,8 +57,8 @@ func commit(e CommitEntries) int {
 // --- add: ArrayArg + boolean flag ---
 
 type AddEntries struct {
-	Files   []string `type:"ArrayArg" start:"0" end:"-1" min_size:"1"`
-	Verbose bool     `type:"Flag" identifiers:"-v,--verbose"`
+	Files   []string `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"files to add to staging"`
+	Verbose bool     `type:"Flag" identifiers:"-v,--verbose" description:"verbose output"`
 }
 
 func add(e AddEntries) int {
@@ -74,8 +74,8 @@ func add(e AddEntries) int {
 // --- remote: Arg (fixed position) + ArrayFlag ---
 
 type RemoteEntries struct {
-	Action string   `type:"Arg" position:"0"`
-	Names  []string `type:"ArrayFlag" identifiers:"-n,--name" required:"false"`
+	Action string   `type:"Arg" position:"0" description:"remote action (list, add, etc)"`
+	Names  []string `type:"ArrayFlag" identifiers:"-n,--name" required:"false" description:"remote repository names"`
 }
 
 func remote(e RemoteEntries) int {
@@ -104,9 +104,9 @@ func remote(e RemoteEntries) int {
 // --- log: all optional flags with defaults ---
 
 type LogEntries struct {
-	Count  int    `type:"Flag" identifiers:"-n,--count" default:"10"`
-	Format string `type:"Flag" identifiers:"--format" default:"short"`
-	All    bool   `type:"Flag" identifiers:"--all"`
+	Count  int    `type:"Flag" identifiers:"-n,--count" default:"10" description:"number of commits to show"`
+	Format string `type:"Flag" identifiers:"--format" default:"short" description:"output format (short, full, oneline)"`
+	All    bool   `type:"Flag" identifiers:"--all" description:"show commits from all branches"`
 }
 
 func logCmd(e LogEntries) int {

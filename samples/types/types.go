@@ -20,11 +20,11 @@ import (
 
 // TypesAsFlagsEntries shows all scalar types used as Flag entries.
 type TypesAsFlagsEntries struct {
-	Name   string  `type:"Flag" identifiers:"-n,--name"`
-	Age    int     `type:"Flag" identifiers:"-a,--age"`
-	ID     int64   `type:"Flag" identifiers:"--id"`
-	Score  float64 `type:"Flag" identifiers:"-s,--score"`
-	Active bool    `type:"Flag" identifiers:"--active"`
+	Name   string  `type:"Flag" identifiers:"-n,--name" description:"person's name (string)"`
+	Age    int     `type:"Flag" identifiers:"-a,--age" description:"person's age (int)"`
+	ID     int64   `type:"Flag" identifiers:"--id" description:"unique identifier (int64)"`
+	Score  float64 `type:"Flag" identifiers:"-s,--score" description:"numeric score (float64)"`
+	Active bool    `type:"Flag" identifiers:"--active" description:"active status (bool)"`
 }
 
 func showFlags(e TypesAsFlagsEntries) int {
@@ -42,9 +42,9 @@ func showFlags(e TypesAsFlagsEntries) int {
 
 // TypesAsArgsEntries shows all non-bool scalar types used as positional NextArg.
 type TypesAsArgsEntries struct {
-	Label string  `type:"NextArg"`
-	Count int     `type:"NextArg"`
-	Price float64 `type:"NextArg"`
+	Label string  `type:"NextArg" description:"item label (string)"`
+	Count int     `type:"NextArg" description:"quantity (int)"`
+	Price float64 `type:"NextArg" description:"unit price (float64)"`
 }
 
 func showArgs(e TypesAsArgsEntries) int {
@@ -60,7 +60,7 @@ func showArgs(e TypesAsArgsEntries) int {
 
 // IntArrayEntries shows []int via ArrayArg.
 type IntArrayEntries struct {
-	Numbers []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1"`
+	Numbers []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"list of integers to sum"`
 }
 
 func sumInts(e IntArrayEntries) int {
@@ -75,7 +75,7 @@ func sumInts(e IntArrayEntries) int {
 
 // StringArrayFlagEntries shows []string via ArrayFlag.
 type StringArrayFlagEntries struct {
-	Hosts []string `type:"ArrayFlag" identifiers:"-H,--host" min_size:"1"`
+	Hosts []string `type:"ArrayFlag" identifiers:"-H,--host" min_size:"1" description:"hosts to ping (can be repeated)"`
 }
 
 func ping(e StringArrayFlagEntries) int {

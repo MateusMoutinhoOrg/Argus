@@ -15,10 +15,10 @@ import (
 //   - Boolean presence flag (TLS)
 //   - Optional string flag with default (LogLevel)
 type ServeEntries struct {
-	Host     string `type:"Flag" identifiers:"-h,--host"`
-	Port     int    `type:"Flag" identifiers:"-p,--port" default:"8080"`
-	TLS      bool   `type:"Flag" identifiers:"--tls"`
-	LogLevel string `type:"Flag" identifiers:"-l,--log-level" default:"info"`
+	Host     string `type:"Flag" identifiers:"-h,--host" description:"the host address to bind to"`
+	Port     int    `type:"Flag" identifiers:"-p,--port" default:"8080" description:"the port number to listen on (default: 8080)"`
+	TLS      bool   `type:"Flag" identifiers:"--tls" description:"enable TLS/HTTPS"`
+	LogLevel string `type:"Flag" identifiers:"-l,--log-level" default:"info" description:"logging level: debug, info, warn, error (default: info)"`
 }
 
 func serve(e ServeEntries) int {

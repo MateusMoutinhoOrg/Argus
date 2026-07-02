@@ -14,7 +14,7 @@ import (
 // localize or restyle the messages.
 
 type GreetEntries struct {
-	Name string `type:"NextArg"`
+	Name string `type:"NextArg" description:"nome da pessoa a cumprimentar"`
 }
 
 func greet(e GreetEntries) int {
@@ -23,8 +23,8 @@ func greet(e GreetEntries) int {
 }
 
 type MathEntries struct {
-	A float64 `type:"Flag" identifiers:"-a"`
-	B float64 `type:"Flag" identifiers:"-b"`
+	A float64 `type:"Flag" identifiers:"-a" description:"primeiro número"`
+	B float64 `type:"Flag" identifiers:"-b" description:"segundo número"`
 }
 
 func add(e MathEntries) int {
@@ -47,23 +47,33 @@ func main() {
 
 	// Portuguese error messages as an example of localization
 	errosPt := Argus.Messages{
-		MissingFlag: func(flag string) string {
-			return fmt.Sprintf("Erro: a flag obrigatória '%s' não foi informada.", flag)
+		MissingFlag: func(flag, description string) string {
+			if description != "" {
+				return fmt.Sprintf("erro: flag obrigatória '%s' não foi informada\n  %s", flag, description)
+			}
+			return fmt.Sprintf("erro: flag obrigatória '%s' não foi informada", flag)
 		},
-		MissingArg: func(arg string) string {
-			return fmt.Sprintf("Erro: o argumento obrigatório '%s' não foi informado.", arg)
+		MissingArg: func(arg, description, position string) string {
+			msg := fmt.Sprintf("erro: argumento obrigatório '%s' não foi informado", arg)
+			if position != "" {
+				msg += fmt.Sprintf(" (posição %s)", position)
+			}
+			if description != "" {
+				msg += fmt.Sprintf("\n  %s", description)
+			}
+			return msg
 		},
 		UnknowAction: func(action string) string {
 			if action == "" {
-				return "Erro: ação (argv[1]) não informada. Use 'greet' ou 'add'."
+				return "erro: ação (argv[1]) não informada. Use 'greet' ou 'add'."
 			}
-			return fmt.Sprintf("Erro: ação desconhecida '%s'. Use 'greet' ou 'add'.", action)
+			return fmt.Sprintf("erro: ação desconhecida '%s'. Use 'greet' ou 'add'.", action)
 		},
 		UnknowArg: func(arg string) string {
-			return fmt.Sprintf("Erro: argumento inválido '%s'.", arg)
+			return fmt.Sprintf("erro: argumento inválido '%s'.", arg)
 		},
 		NaN: func(flag string) string {
-			return fmt.Sprintf("Erro: flag %s não é um número.", flag)
+			return fmt.Sprintf("erro: flag '%s' não é um número.", flag)
 		},
 	}
 

@@ -14,13 +14,13 @@ import (
 // remaining tokens are treated as positional arguments.
 type DeployEntries struct {
 	// Positional args
-	Service     string `type:"NextArg"`
-	Environment string `type:"NextArg"`
+	Service     string `type:"NextArg" description:"name of the service to deploy"`
+	Environment string `type:"NextArg" description:"target environment (staging, production, etc)"`
 	// Flags
-	Replicas int    `type:"Flag" identifiers:"-r,--replicas" default:"1"`
-	Image    string `type:"Flag" identifiers:"-i,--image"`
-	DryRun   bool   `type:"Flag" identifiers:"--dry-run"`
-	Force    bool   `type:"Flag" identifiers:"-f,--force"`
+	Replicas int    `type:"Flag" identifiers:"-r,--replicas" default:"1" description:"number of replicas (default: 1)"`
+	Image    string `type:"Flag" identifiers:"-i,--image" description:"container image to deploy"`
+	DryRun   bool   `type:"Flag" identifiers:"--dry-run" description:"preview changes without applying them"`
+	Force    bool   `type:"Flag" identifiers:"-f,--force" description:"force deployment even if health checks fail"`
 }
 
 func deploy(e DeployEntries) int {
