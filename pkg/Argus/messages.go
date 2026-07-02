@@ -13,10 +13,11 @@ type Messages struct {
 var DefaultMessages = Messages{
 	MissingFlag: func(flag, description string) string {
 		if description != "" {
-			return fmt.Sprintf("error: missing required flag %s\n  %s", flag, description)
+			return fmt.Sprintf("error: missing required flag %s  (%s)\n", flag, description)
 		}
-		return fmt.Sprintf("error: missing required flag %s", flag)
+		return fmt.Sprintf("error: missing required flag %s (description not provided)\n", flag)
 	},
+
 	MissingArg: func(arg, description, position string) string {
 		msg := fmt.Sprintf("error: missing required argument %s", arg)
 		if position != "" {
