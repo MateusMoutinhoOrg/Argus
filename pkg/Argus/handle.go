@@ -199,9 +199,9 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						if args[j] == id {
 							consumed[j] = true
 							consumed[j+1] = true
-							errMsg := setFieldValue(entries.Field(i), field.Type, args[j+1])
+							errMsg := setFieldValue(entries.Field(i), field.Type, args[j+1], field.Name, errs)
 							if errMsg != "" {
-								return nil, fmt.Sprintf(errs.UnknowArg, args[j+1])
+								return nil, errMsg
 							}
 							found = true
 							break
@@ -216,7 +216,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 					// Apply default if present
 					defaultVal := field.Tag.Get("default")
 					if defaultVal != "" {
-						setFieldValue(entries.Field(i), field.Type, defaultVal)
+						setFieldValue(entries.Field(i), field.Type, defaultVal, field.Name, errs)
 					}
 				}
 			}
@@ -241,9 +241,9 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						consumed[j] = true
 						consumed[j+1] = true
 						elem := reflect.New(elemType).Elem()
-						errMsg := setFieldValue(elem, elemType, args[j+1])
+						errMsg := setFieldValue(elem, elemType, args[j+1], field.Name, errs)
 						if errMsg != "" {
-							return nil, fmt.Sprintf(errs.UnknowArg, args[j+1])
+							return nil, errMsg
 						}
 						slice = reflect.Append(slice, elem)
 						break
@@ -294,17 +294,17 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 				return fmt.Sprintf(errs.MissingArg, field.Name+" (invalid position)")
 			}
 			if pos < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos])
+				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos], field.Name, errs)
 				if errMsg != "" {
-					return fmt.Sprintf(errs.UnknowArg, positional[pos])
+					return errMsg
 				}
 			}
 
 		case "NextArg":
 			if nextArgIdx < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[nextArgIdx])
+				errMsg := setFieldValue(entries.Field(i), field.Type, positional[nextArgIdx], field.Name, errs)
 				if errMsg != "" {
-					return fmt.Sprintf(errs.UnknowArg, positional[nextArgIdx])
+					return errMsg
 				}
 				nextArgIdx++
 			}
@@ -345,9 +345,9 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 
 			for j := start; j < end; j++ {
 				elem := reflect.New(elemType).Elem()
-				errMsg := setFieldValue(elem, elemType, positional[j])
+				errMsg := setFieldValue(elem, elemType, positional[j], field.Name, errs)
 				if errMsg != "" {
-					return fmt.Sprintf(errs.UnknowArg, positional[j])
+					return errMsg
 				}
 				slice = reflect.Append(slice, elem)
 			}
@@ -403,20 +403,20 @@ func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, e
 }
 
 // setFieldValue parses the string value and sets it on the given reflect.Value.
-func setFieldValue(field reflect.Value, fieldType reflect.Type, value string) string {
+func setFieldValue(field reflect.Value, fieldType reflect.Type, value string, fieldName string, errs Errors) string {
 	switch fieldType.Kind() {
 	case reflect.String:
 		field.SetString(value)
 	case reflect.Int, reflect.Int64:
 		n, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Sprintf("cannot parse '%s' as int", value)
+			return fmt.Sprintf(errs.NaN, strings.ToLower(fieldName))
 		}
 		field.SetInt(n)
 	case reflect.Float64:
 		f, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return fmt.Sprintf("cannot parse '%s' as float64", value)
+			return fmt.Sprintf(errs.NaN, strings.ToLower(fieldName))
 		}
 		field.SetFloat(f)
 	case reflect.Bool:
