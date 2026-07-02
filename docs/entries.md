@@ -44,7 +44,8 @@ becomes `true` when any identifier appears. See *Required and defaults*.
 | `start`,`end` | `ArrayArg`                | Slice bounds over positional args; `-1` = to the end         |
 | `min_size`    | `ArrayArg`, `ArrayFlag`   | Minimum element count for validation                         |
 | `max_size`    | `ArrayArg`, `ArrayFlag`   | Maximum element count; `-1` = unbounded                      |
-| `help`        | all                       | Description text (usable for generated `--help`)             |
+| `help`        | all                       | **Deprecated.** Use `description` instead.                  |
+| `description` | all                       | Description text (used in generated `--help` and errors)     |
 
 ## Supported field types
 

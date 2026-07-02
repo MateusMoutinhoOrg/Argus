@@ -84,6 +84,7 @@ go run main.go serve --host 0.0.0.0 -p 3000 --tls
 
 ### Getting Started
 - [Quick Start](docs/quick_start.md) — Install Argus and build your first CLI in 5 minutes
+- [Flags and Arguments Guide](docs/flags_and_args.md) — Named flags, positional arguments, and array types with descriptions
 - [API Reference — Entries](docs/entries.md) — Complete guide to struct tags and entry types
 
 ### Core Concepts
@@ -93,7 +94,7 @@ go run main.go serve --host 0.0.0.0 -p 3000 --tls
 
 ### Examples
 
-Explore real working examples in the `samples/` directory:
+Explore real working examples in the `samples/` directory. Each sample demonstrates flags and positional arguments with descriptions for user-friendly CLIs.
 
 - **[flags/](samples/flags)** — Named flags with defaults and boolean presence flags
 - **[positional/](samples/positional)** — Positional argument handling with `Arg` and `NextArg`
@@ -103,11 +104,13 @@ Explore real working examples in the `samples/` directory:
 - **[types/](samples/types)** — Type conversions (int, float64, bool, string)
 - **[custom_errors/](samples/custom_errors)** — Localized error messages (Portuguese example)
 
+See [samples/README.md](samples/README.md) for detailed walkthroughs of each example.
+
 Run any sample:
 
 ```bash
 go run samples/flags/flags.go serve --host 0.0.0.0 -p 9090
-go run samples/positional/positional.go
+go run samples/positional/positional.go copy src.txt dst.txt
 go run samples/custom_errors/custom_errors.go greet "Your Name"
 ```
 
@@ -146,8 +149,10 @@ go get github.com/MateusMoutinhoOrg/Argus@v0.0.1
 
 ```go
 type DeployEntries struct {
-	Env    string `type:"Flag" identifiers:"-e,--env" default:"staging"`
-	Force  bool   `type:"Flag" identifiers:"-f,--force"`
+	Env    string `type:"Flag" identifiers:"-e,--env" default:"staging" 
+	                 description:"deployment environment (default: staging)"`
+	Force  bool   `type:"Flag" identifiers:"-f,--force"
+	               description:"force deployment without confirmation"`
 }
 
 func deploy(e DeployEntries) int {
@@ -172,9 +177,10 @@ props := argus.GenerationProps{
 
 ```go
 type CopyEntries struct {
-	Src   string `type:"NextArg" help:"Source file"`
-	Dst   string `type:"NextArg" help:"Destination file"`
-	Force bool   `type:"Flag" identifiers:"-f,--force"`
+	Src   string `type:"NextArg" description:"source file path"`
+	Dst   string `type:"NextArg" description:"destination file path"`
+	Force bool   `type:"Flag" identifiers:"-f,--force" 
+	               description:"overwrite destination without prompting"`
 }
 
 func copy(e CopyEntries) int {
@@ -204,6 +210,27 @@ func TestServe(t *testing.T) {
 }
 ```
 
+## Describing Flags and Arguments
+
+Each field can have a `description` tag that documents its purpose. This description appears in auto-generated help output and error messages.
+
+```go
+type ServeEntries struct {
+    Host     string `type:"Flag" identifiers:"--host,-h" 
+                      description:"hostname or IP to bind to"`
+    Port     int    `type:"Flag" identifiers:"--port,-p" default:"8080"
+                      description:"port number (default: 8080)"`
+    TLS      bool   `type:"Flag" identifiers:"--tls"
+                      description:"enable HTTPS"`
+    Files    []string `type:"ArrayArg" start:"0" end:"-1" min_size:"1"
+                        description:"input files (at least one required)"`
+}
+```
+
+Descriptions guide users when they run `--help` or encounter errors. Keep descriptions concise, mention defaults when non-obvious, and specify constraints for array types.
+
+See [Flags and Arguments Guide](docs/flags_and_args.md) for patterns and best practices.
+
 ## Tag System Reference
 
 Each struct field declares how it's populated via tags:
@@ -217,7 +244,7 @@ Each struct field declares how it's populated via tags:
 | `default` | Default value as string | `default:"8080"` |
 | `start`, `end` | Array bounds (for `ArrayArg`) | `start:"0" end:"-1"` |
 | `min_size`, `max_size` | Array size constraints | `min_size:"1" max_size:"10"` |
-| `help` | Help text for this argument | `help:"Port number to listen on"` |
+| `description` | Description for help and errors | `description:"port to listen on"` |
 
 See [docs/entries.md](docs/entries.md) for complete details.
 

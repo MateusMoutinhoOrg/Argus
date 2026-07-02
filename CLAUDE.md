@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Parsing Flow
 
-1. **Struct tag inspection** — Reflects on callback function parameter struct; reads `type:`, `identifiers:`, `position:`, `required:`, `default:`, `help:`, etc.
+1. **Struct tag inspection** — Reflects on callback function parameter struct; reads `type:`, `identifiers:`, `position:`, `required:`, `default:`, `description:`, etc.
 2. **Flag extraction** — First pass collects named flags (Flag, ArrayFlag), marking consumed args
 3. **Positional population** — Second pass fills Arg/NextArg/ArrayArg from remaining args
 4. **Validation** — Checks required fields, applies defaults, validates array sizes
@@ -51,10 +51,11 @@ Modifier tags:
 - `identifiers:"-p,--port"` — Flag aliases
 - `required:"false"` — Optional; uses zero value if missing
 - `default:"8080"` — Optional with fallback; implies `required:"false"`
-- `help:"Description"` — Auto-generated help text
+- `description:"..."` — Description for help text and error messages (user-facing docs)
+- `help:"Description"` — **Deprecated.** Use `description` instead.
 - `min_size:`, `max_size:` — Array validation
 
-See `docs/entries.md` for the full API reference.
+See `docs/entries.md` for the full API reference and `docs/flags_and_args.md` for comprehensive patterns.
 
 ## Commands
 
@@ -115,13 +116,15 @@ Error messages are now built via the `Messages` struct (replacing the legacy `Er
 
 ### Generating Help Text
 
-Help is auto-generated from callback descriptions and field help tags:
+Help is auto-generated from callback descriptions and field description tags:
 - `Callback.Description` — Command summary shown in global help
-- `help:"..."` tag — Detailed field description in command-specific help
+- `description:"..."` tag — Detailed field description in command-specific help and error messages
 
 Help layout:
 - Global help: app name, description, list of commands, example invocation
 - Command help: usage, arguments section, flags section (each with descriptions)
+
+See `docs/flags_and_args.md` for best practices on writing descriptions.
 
 ## Key Design Decisions
 
@@ -134,11 +137,18 @@ Help layout:
 ## File Organization
 
 ```
-pkg/Argus/        # Core parsing logic (reflection, struct tag inspection)
-pkg/deps/         # Dependency injection (Args, Print)
-adapters/native/  # OS integration (os.Args, stdout)
-samples/          # Reference CLI applications demonstrating features
-docs/entries.md   # Complete API reference for struct tags and types
+pkg/Argus/              # Core parsing logic (reflection, struct tag inspection)
+pkg/deps/               # Dependency injection (Args, Print)
+adapters/native/        # OS integration (os.Args, stdout)
+samples/                # Reference CLI applications demonstrating features
+samples/README.md       # Walkthroughs of each sample with descriptions
+docs/
+  entries.md            # Complete API reference for struct tags and types
+  flags_and_args.md     # Comprehensive guide to flags, args, and descriptions
+  deps.md               # Testing and dependency injection patterns
+  msg_format.md         # Custom messages and localization
+  quick_start.md        # Getting started guide
+  glossary.md           # Troubleshooting and terminology
 ```
 
 ## Next Steps / Known Gaps
