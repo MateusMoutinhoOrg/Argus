@@ -79,10 +79,10 @@ func main() {
 
 	props := Argus.GenerationProps{
 		Callbacks: []Argus.Callback{
-			{Starter: "merge", Callback: merge},
-			{Starter: "swap", Callback: swap},
-			{Starter: "tag", Callback: tag},
-			{Starter: "average", Callback: average},
+			{Starter: "merge", Callback: merge, Description: "Merge multiple files together"},
+			{Starter: "swap", Callback: swap, Description: "Swap the contents of two files"},
+			{Starter: "tag", Callback: tag, Description: "Apply tags"},
+			{Starter: "average", Callback: average, Description: "Calculate the average of scores"},
 		},
 	}
 

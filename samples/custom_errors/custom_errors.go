@@ -56,8 +56,8 @@ func main() {
 	props := Argus.GenerationProps{
 		Errors: errosPt,
 		Callbacks: []Argus.Callback{
-			{Starter: "greet", Callback: greet},
-			{Starter: "add", Callback: add},
+			{Starter: "greet", Callback: greet, Description: "Greet a user by name"},
+			{Starter: "add", Callback: add, Description: "Add two numbers"},
 		},
 	}
 

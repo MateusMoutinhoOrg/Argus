@@ -143,12 +143,12 @@ func main() {
 
 	props := Argus.GenerationProps{
 		Callbacks: []Argus.Callback{
-			{Starter: "init", Callback: initRepo},
-			{Starter: "clone", Callback: clone},
-			{Starter: "commit", Callback: commit},
-			{Starter: "add", Callback: add},
-			{Starter: "remote", Callback: remote},
-			{Starter: "log", Callback: logCmd},
+			{Starter: "init", Callback: initRepo, Description: "Initialize an empty repository"},
+			{Starter: "clone", Callback: clone, Description: "Clone a repository"},
+			{Starter: "commit", Callback: commit, Description: "Record changes to the repository"},
+			{Starter: "add", Callback: add, Description: "Add file contents to the index"},
+			{Starter: "remote", Callback: remote, Description: "Manage set of tracked repositories"},
+			{Starter: "log", Callback: logCmd, Description: "Show commit logs"},
 		},
 	}
 

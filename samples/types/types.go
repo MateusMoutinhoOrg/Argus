@@ -97,10 +97,10 @@ func main() {
 
 	props := Argus.GenerationProps{
 		Callbacks: []Argus.Callback{
-			{Starter: "flags", Callback: showFlags},
-			{Starter: "args", Callback: showArgs},
-			{Starter: "sum-ints", Callback: sumInts},
-			{Starter: "ping", Callback: ping},
+			{Starter: "flags", Callback: showFlags, Description: "Show all scalar types via flags"},
+			{Starter: "args", Callback: showArgs, Description: "Show scalar types via positional arguments"},
+			{Starter: "sum-ints", Callback: sumInts, Description: "Sum an array of integers"},
+			{Starter: "ping", Callback: ping, Description: "Ping a list of hosts"},
 		},
 	}
 
