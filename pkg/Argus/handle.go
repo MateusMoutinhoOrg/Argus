@@ -181,7 +181,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						break
 					}
 				}
-				
+
 				if !found {
 					defaultVal := field.Tag.Get("default")
 					if defaultVal == "true" {
@@ -392,6 +392,10 @@ func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, m
 		if fieldVal.IsZero() {
 			switch entryType {
 			case "Flag", "ArrayFlag":
+				identifiers := field.Tag.Get("identifiers")
+				if identifiers != "" {
+					return msgs.MissingFlag(strings.Split(identifiers, ",")[0])
+				}
 				return msgs.MissingFlag(field.Name)
 			default:
 				return msgs.MissingArg(field.Name)

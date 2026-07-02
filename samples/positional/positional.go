@@ -24,9 +24,9 @@ func copyFile(e NextArgEntries) int {
 // FixedArgEntries demonstrates fixed-position positional arguments.
 // Each Arg field binds to a specific positional index via the position tag.
 type FixedArgEntries struct {
-	Filename  string `type:"Arg" position:"0"`
-	LineNum   int    `type:"Arg" position:"1"`
-	ColNum    int    `type:"Arg" position:"2" required:"false"`
+	Filename string `type:"Arg" position:"0"`
+	LineNum  int    `type:"Arg" position:"1"`
+	ColNum   int    `type:"Arg" position:"2" required:"false"`
 }
 
 func gotoLine(e FixedArgEntries) int {

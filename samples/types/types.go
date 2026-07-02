@@ -20,11 +20,11 @@ import (
 
 // TypesAsFlagsEntries shows all scalar types used as Flag entries.
 type TypesAsFlagsEntries struct {
-	Name    string  `type:"Flag" identifiers:"-n,--name"`
-	Age     int     `type:"Flag" identifiers:"-a,--age"`
-	ID      int64   `type:"Flag" identifiers:"--id"`
-	Score   float64 `type:"Flag" identifiers:"-s,--score"`
-	Active  bool    `type:"Flag" identifiers:"--active"`
+	Name   string  `type:"Flag" identifiers:"-n,--name"`
+	Age    int     `type:"Flag" identifiers:"-a,--age"`
+	ID     int64   `type:"Flag" identifiers:"--id"`
+	Score  float64 `type:"Flag" identifiers:"-s,--score"`
+	Active bool    `type:"Flag" identifiers:"--active"`
 }
 
 func showFlags(e TypesAsFlagsEntries) int {
@@ -42,9 +42,9 @@ func showFlags(e TypesAsFlagsEntries) int {
 
 // TypesAsArgsEntries shows all non-bool scalar types used as positional NextArg.
 type TypesAsArgsEntries struct {
-	Label  string  `type:"NextArg"`
-	Count  int     `type:"NextArg"`
-	Price  float64 `type:"NextArg"`
+	Label string  `type:"NextArg"`
+	Count int     `type:"NextArg"`
+	Price float64 `type:"NextArg"`
 }
 
 func showArgs(e TypesAsArgsEntries) int {
