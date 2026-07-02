@@ -107,7 +107,7 @@ go run samples/custom_errors/custom_errors.go greet "Your Name"
 ## Installation
 
 ```bash
-go get github.com/MateusMoutinhoOrg/Argus
+go get github.com/MateusMoutinhoOrg/Argus@v0.0.1
 ```
 
 ## Architecture Overview
