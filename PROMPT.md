@@ -1,19 +1,16 @@
 
-add the quiet mode option:
-changes:
+implement the following docs:
+IMPORTANT:
+Make the documentation professional and easier to beeguinners
 
-struct GenerationProps:
- - bool quiet  (default to false)
+- docs/quick_start.md (a quick introduction of how to install de lib and use)
+- docs/deps.md (a doc explaning how to manipulate deps to debug, such as retriving print results, etc )
+- docs/msg_format.md (a doc of how to manage custom menssages)
 
-struct Deps:
- - bool quiet (injected by HandleCli) 
-
-
-adapters/native/native.go -> Print
-if quiet is true, dont print
+- docs/entries.md (a doc of how to handle entries)
+- what ever doc you thing its nescessary 
 
 
-if the user pass the --quiet flag, and quiet is true on user props, then no output should be printed to the console
-
-
+- README.md 
+the Readme of the project, that has a table of contents ,pointing to the docs 
 
