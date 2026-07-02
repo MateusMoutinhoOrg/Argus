@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // This sample simulates a real-world git-like CLI tool with multiple
@@ -139,10 +139,10 @@ func logCmd(e LogEntries) int {
 //	go run samples/gitlike/gitlike.go log -n 5 --format oneline --all
 func main() {
 
-	argus := Argus.New(native.New())
+	a := argus.New(native.New())
 
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "init", Callback: initRepo, Description: "Initialize an empty repository"},
 			{Starter: "clone", Callback: clone, Description: "Clone a repository"},
 			{Starter: "commit", Callback: commit, Description: "Record changes to the repository"},
@@ -152,7 +152,7 @@ func main() {
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

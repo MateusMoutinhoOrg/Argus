@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // ArrayArgEntries demonstrates ArrayArg — collecting a contiguous range
@@ -75,10 +75,10 @@ func average(e ArrayFlagNumEntries) int {
 //	go run samples/arrays/arrays.go average -s 9.5 -s 8.0 -s 7.2 -s 10.0
 func main() {
 
-	argus := Argus.New(native.New())
+	a := argus.New(native.New())
 
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "merge", Callback: merge, Description: "Merge multiple files together"},
 			{Starter: "swap", Callback: swap, Description: "Swap the contents of two files"},
 			{Starter: "tag", Callback: tag, Description: "Apply tags"},
@@ -86,7 +86,7 @@ func main() {
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // This sample demonstrates how to customize the error messages
@@ -42,11 +42,10 @@ func add(e MathEntries) int {
 //	go run samples/custom_errors/custom_errors.go greet
 //	go run samples/custom_errors/custom_errors.go add -a 10
 func main() {
-
-	argus := Argus.New(native.New())
+	a := argus.New(native.New())
 
 	// Portuguese error messages as an example of localization
-	errosPt := Argus.Messages{
+	errosPt := argus.Messages{
 		MissingFlag: func(flag, description string) string {
 			if description != "" {
 				return fmt.Sprintf("erro: flag obrigatória '%s' não foi informada\n  %s", flag, description)
@@ -63,13 +62,13 @@ func main() {
 			}
 			return msg
 		},
-		UnknowAction: func(action string) string {
+		UnknownAction: func(action string) string {
 			if action == "" {
 				return "erro: ação (argv[1]) não informada. Use 'greet' ou 'add'."
 			}
 			return fmt.Sprintf("erro: ação desconhecida '%s'. Use 'greet' ou 'add'.", action)
 		},
-		UnknowArg: func(arg string) string {
+		UnknownArg: func(arg string) string {
 			return fmt.Sprintf("erro: argumento inválido '%s'.", arg)
 		},
 		NaN: func(flag string) string {
@@ -77,15 +76,15 @@ func main() {
 		},
 	}
 
-	props := Argus.GenerationProps{
+	props := argus.GenerationProps{
 		Messages: errosPt,
-		Callbacks: []Argus.Callback{
+		Callbacks: []argus.Callback{
 			{Starter: "greet", Callback: greet, Description: "Greet a user by name"},
 			{Starter: "add", Callback: add, Description: "Add two numbers"},
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("Erro de configuração:", err)
 		os.Exit(1)

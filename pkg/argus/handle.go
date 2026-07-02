@@ -1,4 +1,4 @@
-package Argus
+package argus
 
 import (
 	"fmt"
@@ -68,7 +68,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 
 	// Need at least program name + command
 	if len(args) < 2 {
-		l.deps.Print(props.Messages.UnknowAction(""))
+		l.deps.Print(props.Messages.UnknownAction(""))
 		return 1, nil
 	}
 
@@ -99,7 +99,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	}
 
 	if matched == nil {
-		l.deps.Print(props.Messages.UnknowAction(command))
+		l.deps.Print(props.Messages.UnknownAction(command))
 		return 1, nil
 	}
 

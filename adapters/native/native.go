@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	Deps "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 func Print(s string) {
 	fmt.Println(s)
 }
-func New() Deps.Deps {
-
-	return Deps.Deps{
+func New() deps.Deps {
+	return deps.Deps{
 		Args:  os.Args,
 		Print: Print,
 	}

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // This sample demonstrates every supported scalar type:
@@ -92,11 +92,10 @@ func ping(e StringArrayFlagEntries) int {
 //	go run samples/types/types.go sum-ints 10 20 30 40
 //	go run samples/types/types.go ping -H google.com -H github.com -H example.org
 func main() {
+	a := argus.New(native.New())
 
-	argus := Argus.New(native.New())
-
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "flags", Callback: showFlags, Description: "Show all scalar types via flags"},
 			{Starter: "args", Callback: showArgs, Description: "Show scalar types via positional arguments"},
 			{Starter: "sum-ints", Callback: sumInts, Description: "Sum an array of integers"},
@@ -104,7 +103,7 @@ func main() {
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

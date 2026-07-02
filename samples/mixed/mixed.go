@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // DeployEntries demonstrates combining positional args and flags
@@ -50,15 +50,15 @@ func deploy(e DeployEntries) int {
 //	go run samples/mixed/mixed.go deploy worker production --image worker:v1.0 --force -r 5
 func main() {
 
-	argus := Argus.New(native.New())
+	a := argus.New(native.New())
 
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "deploy", Callback: deploy, Description: "Deploy a service to an environment"},
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

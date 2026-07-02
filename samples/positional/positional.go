@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // NextArgEntries demonstrates sequential positional argument consumption.
@@ -44,17 +44,16 @@ func gotoLine(e FixedArgEntries) int {
 //	go run samples/positional/positional.go goto main.go 42
 //	go run samples/positional/positional.go goto main.go 42 10
 func main() {
+	a := argus.New(native.New())
 
-	argus := Argus.New(native.New())
-
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "copy", Callback: copyFile, Description: "Copy a file from source to destination"},
 			{Starter: "goto", Callback: gotoLine, Description: "Go to a specific line in a file"},
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
-	"github.com/MateusMoutinhoOrg/Argus/pkg/Argus"
+	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
 // ServeEntries demonstrates:
@@ -62,17 +62,16 @@ func status(e StatusEntries) int {
 //	go run samples/flags/flags.go status
 //	go run samples/flags/flags.go status --verbose --format json
 func main() {
+	a := argus.New(native.New())
 
-	argus := Argus.New(native.New())
-
-	props := Argus.GenerationProps{
-		Callbacks: []Argus.Callback{
+	props := argus.GenerationProps{
+		Callbacks: []argus.Callback{
 			{Starter: "serve", Callback: serve, Description: "Serve the application"},
 			{Starter: "status", Callback: status, Description: "Get the application status"},
 		},
 	}
 
-	exitCode, err := argus.HandleCli(props)
+	exitCode, err := a.HandleCli(props)
 	if err != nil {
 		fmt.Println("config error:", err)
 		os.Exit(1)

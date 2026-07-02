@@ -1,2 +1,3 @@
 # Argus
-A Argv Parser Lib for Go 
+
+A CLI argument parser library for Go 
