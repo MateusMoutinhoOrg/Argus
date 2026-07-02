@@ -1,9 +1,13 @@
-improve the msgs generated
-1. add a description element on the callback entries like:
-~~~go
-	Depth int    `type:"Flag" identifiers:"--depth" required:"false" description:"specifies the depth of the clone"`
-~~~
 
-2. format the help to be more professional and complete
-3. format the errors to indicate each flag is missing  and its description
-3. format the errors to indicate each args its missing and it possitions 
+add the quiet mode:
+changes:
+
+struct GenerationProps:
+ - bool quiet  (default to false)
+
+struct Deps:
+ - bool quiet (injected by HandleCli)
+
+ changes when quiet is true:
+ no menssages, both by the UserCallback or by the engine should be plotted
+ 
