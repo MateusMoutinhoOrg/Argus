@@ -7,7 +7,7 @@ Get up and running with Argus in 5 minutes.
 Add Argus to your Go project:
 
 ```bash
-go get github.com/MateusMoutinhoOrg/Argus@v0.0.1
+go get github.com/MateusMoutinhoOrg/Argus@v0.0.2
 ```
 
 ## Your First CLI Application
