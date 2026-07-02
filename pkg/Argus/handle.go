@@ -71,6 +71,20 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	command := args[1]
 	commandArgs := args[2:]
 
+	if command == "help" || command == "--help" || command == "-h" {
+		if len(commandArgs) > 0 {
+			cmd := commandArgs[0]
+			for i := range props.Callbacks {
+				if props.Callbacks[i].Starter == cmd {
+					l.printCommandHelp(props.Callbacks[i])
+					return 0, nil
+				}
+			}
+		}
+		l.printGlobalHelp(props.Callbacks)
+		return 0, nil
+	}
+
 	// Find the matching callback
 	var matched *Callback
 	for i := range props.Callbacks {
@@ -83,6 +97,13 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	if matched == nil {
 		l.deps.Print(fmt.Sprintf(props.Errors.UnknowAction, command))
 		return 1, nil
+	}
+
+	for _, arg := range commandArgs {
+		if arg == "help" || arg == "--help" || arg == "-h" {
+			l.printCommandHelp(*matched)
+			return 0, nil
+		}
 	}
 
 	// Use reflection to inspect the callback function
@@ -139,6 +160,7 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 
 			if field.Type.Kind() == reflect.Bool {
 				// Boolean presence flag
+				found := false
 				for j := 0; j < len(args); j++ {
 					if consumed[j] {
 						continue
@@ -147,8 +169,19 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						if args[j] == id {
 							entries.Field(i).SetBool(true)
 							consumed[j] = true
+							found = true
 							break
 						}
+					}
+					if found {
+						break
+					}
+				}
+				
+				if !found {
+					defaultVal := field.Tag.Get("default")
+					if defaultVal == "true" {
+						entries.Field(i).SetBool(true)
 					}
 				}
 			} else {
@@ -409,4 +442,34 @@ func validateArraySize(field reflect.Value, fieldName string, minSizeStr string,
 		}
 	}
 	return ""
+}
+
+func (l Lib) printGlobalHelp(callbacks []Callback) {
+	l.deps.Print("Available commands:")
+	for _, cb := range callbacks {
+		l.deps.Print(fmt.Sprintf("  %s", cb.Starter))
+	}
+}
+
+func (l Lib) printCommandHelp(cb Callback) {
+	l.deps.Print(fmt.Sprintf("Usage: %s [arguments...]", cb.Starter))
+	
+	cbValue := reflect.ValueOf(cb.Callback)
+	entriesType := cbValue.Type().In(0)
+	
+	for i := 0; i < entriesType.NumField(); i++ {
+		field := entriesType.Field(i)
+		entryType := field.Tag.Get("type")
+		helpMsg := field.Tag.Get("help")
+		if helpMsg == "" {
+			helpMsg = "No description"
+		}
+		
+		if entryType == "Flag" || entryType == "ArrayFlag" {
+			identifiers := field.Tag.Get("identifiers")
+			l.deps.Print(fmt.Sprintf("  %s\t%s", identifiers, helpMsg))
+		} else {
+			l.deps.Print(fmt.Sprintf("  %s\t%s", field.Name, helpMsg))
+		}
+	}
 }
