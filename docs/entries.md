@@ -73,9 +73,9 @@ optional: present → `true`, absent → `false`.
 
 ```go
 type ServeEntries struct {
-    Host string `type:"Flag" identifiers:"--host"`                    // required
-    Port int    `type:"Flag" identifiers:"-p,--port" default:"8080"`  // optional -> 8080
-    TLS  bool   `type:"Flag" identifiers:"--tls"`                     // presence, optional
+    Host string `type:"Flag" identifiers:"--host" description:"hostname to bind to"`
+    Port int    `type:"Flag" identifiers:"-p,--port" default:"8080" description:"port number (default: 8080)"`
+    TLS  bool   `type:"Flag" identifiers:"--tls" description:"enable HTTPS"`
 }
 ```
 
@@ -98,8 +98,8 @@ by a flag or a previous entry, in declaration order.
 
 ```go
 type AddEntries struct {
-    A float64 `type:"NextArg"`
-    B float64 `type:"NextArg"`
+    A float64 `type:"NextArg" description:"first number"`
+    B float64 `type:"NextArg" description:"second number"`
 }
 
 func sum(e AddEntries) int {
@@ -120,9 +120,9 @@ skip or reorder.
 
 ```go
 type SumEntries struct {
-    A float64 `type:"Arg" position:"0"`
-    B float64 `type:"Arg" position:"1"`
-    C float64 `type:"Arg" position:"2"`
+    A float64 `type:"Arg" position:"0" description:"first number"`
+    B float64 `type:"Arg" position:"1" description:"second number"`
+    C float64 `type:"Arg" position:"2" description:"third number"`
 }
 
 func sum(e SumEntries) int {
@@ -146,7 +146,7 @@ a Go slice bound; `end:"-1"` means "until the last positional".
 
 ```go
 type PrintEntries struct {
-    Nums []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1"`
+    Nums []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"numbers to print"`
 }
 
 func printAll(e PrintEntries) int {
@@ -172,8 +172,8 @@ A bounded window (`start:"0" end:"2"`) would capture only the first two position
 
 ```go
 type AddEntries struct {
-    A float64 `type:"Flag" identifiers:"-a,--a"`
-    B float64 `type:"Flag" identifiers:"-b,--b"`
+    A float64 `type:"Flag" identifiers:"-a,--a" description:"first number"`
+    B float64 `type:"Flag" identifiers:"-b,--b" description:"second number"`
 }
 
 func sum(e AddEntries) int {
@@ -194,8 +194,8 @@ absence maps to `false`, these are always optional.
 
 ```go
 type BuildEntries struct {
-    Verbose bool   `type:"Flag" identifiers:"-v,--verbose"`
-    Output  string `type:"Flag" identifiers:"-o,--output" default:"a.out"`
+    Verbose bool   `type:"Flag" identifiers:"-v,--verbose" description:"verbose output"`
+    Output  string `type:"Flag" identifiers:"-o,--output" default:"a.out" description:"output file path (default: a.out)"`
 }
 
 func build(e BuildEntries) int {
@@ -219,7 +219,7 @@ The flag may appear multiple times; each occurrence appends one element.
 
 ```go
 type CollectEntries struct {
-    Nums []float64 `type:"ArrayFlag" identifiers:"-a,--a" min_size:"1" max_size:"-1"`
+    Nums []float64 `type:"ArrayFlag" identifiers:"-a,--a" min_size:"1" max_size:"-1" description:"numbers to collect (can be repeated)"`
 }
 
 func collect(e CollectEntries) int {
@@ -244,9 +244,9 @@ then the remaining tokens are treated as positionals.
 
 ```go
 type CopyEntries struct {
-    Src   string `type:"NextArg"`
-    Dst   string `type:"NextArg"`
-    Force bool   `type:"Flag" identifiers:"-f,--force"`
+    Src   string `type:"NextArg" description:"source file path"`
+    Dst   string `type:"NextArg" description:"destination file path"`
+    Force bool   `type:"Flag" identifiers:"-f,--force" description:"overwrite without prompting"`
 }
 ```
 

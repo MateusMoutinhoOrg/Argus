@@ -37,9 +37,9 @@ import (
 )
 
 type ServeEntries struct {
-	Host string `type:"Flag" identifiers:"-h,--host" default:"localhost"`
-	Port int    `type:"Flag" identifiers:"-p,--port" default:"8080"`
-	TLS  bool   `type:"Flag" identifiers:"--tls"`
+	Host string `type:"Flag" identifiers:"-h,--host" default:"localhost" description:"hostname to bind to (default: localhost)"`
+	Port int    `type:"Flag" identifiers:"-p,--port" default:"8080" description:"port number (default: 8080)"`
+	TLS  bool   `type:"Flag" identifiers:"--tls" description:"enable HTTPS"`
 }
 
 func serve(e ServeEntries) int {
