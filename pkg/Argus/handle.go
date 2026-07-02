@@ -2,18 +2,22 @@ package Argus
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
 type Callback struct {
-	Starter  string
-	Callback any
+	Starter     string
+	Description string
+	Callback    any
 }
 type GenerationProps struct {
-	Errors    Errors
-	Callbacks []Callback
+	Name        string
+	Description string
+	Errors      Errors
+	Callbacks   []Callback
 }
 
 func (l Lib) HandleCli(props GenerationProps) (int, error) {
@@ -76,12 +80,12 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 			cmd := commandArgs[0]
 			for i := range props.Callbacks {
 				if props.Callbacks[i].Starter == cmd {
-					l.printCommandHelp(props.Callbacks[i])
+					l.printCommandHelp(props, props.Callbacks[i])
 					return 0, nil
 				}
 			}
 		}
-		l.printGlobalHelp(props.Callbacks)
+		l.printGlobalHelp(props)
 		return 0, nil
 	}
 
@@ -101,7 +105,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 
 	for _, arg := range commandArgs {
 		if arg == "help" || arg == "--help" || arg == "-h" {
-			l.printCommandHelp(*matched)
+			l.printCommandHelp(props, *matched)
 			return 0, nil
 		}
 	}
@@ -444,19 +448,71 @@ func validateArraySize(field reflect.Value, fieldName string, minSizeStr string,
 	return ""
 }
 
-func (l Lib) printGlobalHelp(callbacks []Callback) {
-	l.deps.Print("Available commands:")
-	for _, cb := range callbacks {
-		l.deps.Print(fmt.Sprintf("  %s", cb.Starter))
+func (l Lib) printGlobalHelp(props GenerationProps) {
+	appName := props.Name
+	if appName == "" && len(l.deps.Args) > 0 {
+		appName = filepath.Base(l.deps.Args[0])
 	}
+	if appName == "" {
+		appName = "app"
+	}
+
+	if props.Description != "" {
+		l.deps.Print(fmt.Sprintf("%s\n", props.Description))
+	}
+
+	l.deps.Print("USAGE:")
+	l.deps.Print(fmt.Sprintf("  %s <command> [arguments...]\n", appName))
+
+	l.deps.Print("COMMANDS:")
+	maxLen := 0
+	for _, cb := range props.Callbacks {
+		if len(cb.Starter) > maxLen {
+			maxLen = len(cb.Starter)
+		}
+	}
+
+	for _, cb := range props.Callbacks {
+		desc := cb.Description
+		if desc == "" {
+			desc = "No description provided."
+		}
+		padding := strings.Repeat(" ", maxLen-len(cb.Starter)+2)
+		l.deps.Print(fmt.Sprintf("  %s%s%s", cb.Starter, padding, desc))
+	}
+
+	l.deps.Print(fmt.Sprintf("\nRun '%s help <command>' for more information on a command.", appName))
 }
 
-func (l Lib) printCommandHelp(cb Callback) {
-	l.deps.Print(fmt.Sprintf("Usage: %s [arguments...]", cb.Starter))
-	
+func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
+	appName := props.Name
+	if appName == "" && len(l.deps.Args) > 0 {
+		appName = filepath.Base(l.deps.Args[0])
+	}
+	if appName == "" {
+		appName = "app"
+	}
+
+	if cb.Description != "" {
+		l.deps.Print(fmt.Sprintf("%s\n", cb.Description))
+	}
+
+	l.deps.Print("USAGE:")
+	l.deps.Print(fmt.Sprintf("  %s %s [arguments...]\n", appName, cb.Starter))
+
 	cbValue := reflect.ValueOf(cb.Callback)
 	entriesType := cbValue.Type().In(0)
-	
+
+	type fieldInfo struct {
+		name   string
+		desc   string
+		isFlag bool
+	}
+
+	var infos []fieldInfo
+	maxFlagLen := 0
+	maxArgLen := 0
+
 	for i := 0; i < entriesType.NumField(); i++ {
 		field := entriesType.Field(i)
 		entryType := field.Tag.Get("type")
@@ -464,12 +520,61 @@ func (l Lib) printCommandHelp(cb Callback) {
 		if helpMsg == "" {
 			helpMsg = "No description"
 		}
-		
+
+		info := fieldInfo{desc: helpMsg}
+
 		if entryType == "Flag" || entryType == "ArrayFlag" {
 			identifiers := field.Tag.Get("identifiers")
-			l.deps.Print(fmt.Sprintf("  %s\t%s", identifiers, helpMsg))
+			if identifiers == "" {
+				continue
+			}
+			info.name = identifiers
+			info.isFlag = true
+			if len(identifiers) > maxFlagLen {
+				maxFlagLen = len(identifiers)
+			}
+		} else if entryType == "Arg" || entryType == "NextArg" || entryType == "ArrayArg" {
+			info.name = field.Name
+			info.isFlag = false
+			if len(field.Name) > maxArgLen {
+				maxArgLen = len(field.Name)
+			}
 		} else {
-			l.deps.Print(fmt.Sprintf("  %s\t%s", field.Name, helpMsg))
+			continue
+		}
+		infos = append(infos, info)
+	}
+
+	hasFlags := false
+	hasArgs := false
+	for _, info := range infos {
+		if info.isFlag {
+			hasFlags = true
+		} else {
+			hasArgs = true
+		}
+	}
+
+	if hasArgs {
+		l.deps.Print("ARGUMENTS:")
+		for _, info := range infos {
+			if !info.isFlag {
+				padding := strings.Repeat(" ", maxArgLen-len(info.name)+2)
+				l.deps.Print(fmt.Sprintf("  %s%s%s", info.name, padding, info.desc))
+			}
+		}
+		if hasFlags {
+			l.deps.Print("")
+		}
+	}
+
+	if hasFlags {
+		l.deps.Print("FLAGS:")
+		for _, info := range infos {
+			if info.isFlag {
+				padding := strings.Repeat(" ", maxFlagLen-len(info.name)+2)
+				l.deps.Print(fmt.Sprintf("  %s%s%s", info.name, padding, info.desc))
+			}
 		}
 	}
 }
