@@ -1,11 +1,10 @@
 
-add the quiet mode:
+add the quiet mode option:
 changes:
 
 struct GenerationProps:
  - bool quiet  (default to false)
 
 
- changes when quiet is true:
- no menssages, both by the UserCallback or by the engine should be plotted
- 
+if the user pass the --quiet flag, and quiet is true on user props, then no output should be printed to the console
+
