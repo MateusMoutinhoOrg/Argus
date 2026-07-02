@@ -62,6 +62,11 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 		if cbType.Out(0).Kind() != reflect.Int {
 			return 1, fmt.Errorf("callback for '%s' must return int, got %s", cb.Starter, cbType.Out(0).Kind())
 		}
+
+		// Validate struct field tags
+		if err := validateStructTags(paramType); err != nil {
+			return 1, fmt.Errorf("callback for '%s': %w", cb.Starter, err)
+		}
 	}
 
 	args := l.deps.Args
@@ -490,6 +495,48 @@ func (l Lib) printGlobalHelp(props GenerationProps) {
 	}
 
 	l.deps.Print(fmt.Sprintf("\nRun '%s help <command>' for more information on a command.", appName))
+}
+
+// validateStructTags validates that all struct field tags are correctly formed.
+func validateStructTags(entriesType reflect.Type) error {
+	validTypes := map[string]bool{
+		"Flag":      true,
+		"ArrayFlag": true,
+		"Arg":       true,
+		"NextArg":   true,
+		"ArrayArg":  true,
+	}
+
+	for i := 0; i < entriesType.NumField(); i++ {
+		field := entriesType.Field(i)
+		entryType := field.Tag.Get("type")
+
+		// type tag is required for exported fields
+		if entryType == "" {
+			return fmt.Errorf("field '%s' missing 'type' tag", field.Name)
+		}
+
+		// Check if type is valid
+		if !validTypes[entryType] {
+			return fmt.Errorf("field '%s' has invalid type '%s', must be one of: Flag, ArrayFlag, Arg, NextArg, ArrayArg", field.Name, entryType)
+		}
+
+		// Validate type-specific requirements
+		switch entryType {
+		case "Flag", "ArrayFlag":
+			identifiers := field.Tag.Get("identifiers")
+			if identifiers == "" {
+				return fmt.Errorf("field '%s' (type:%s) missing 'identifiers' tag", field.Name, entryType)
+			}
+		case "Arg":
+			position := field.Tag.Get("position")
+			if position == "" {
+				return fmt.Errorf("field '%s' (type:Arg) missing 'position' tag", field.Name)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
