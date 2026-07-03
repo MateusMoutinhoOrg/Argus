@@ -4,7 +4,7 @@ This directory contains working examples of Argus CLI applications, demonstratin
 
 ## Overview
 
-Each sample showcases different argument patterns and how to add descriptions that appear in help output and error messages.
+Each sample showcases different argument patterns and how to add descriptions that appear in help output and error messages. There is no `type` tag — Argus infers the entry kind from whether a field lives in an `Args` or `Flags` sub-struct, whether it's a slice, and whether it has a `position` tag.
 
 ---
 
@@ -20,13 +20,16 @@ Demonstrates flags with various configurations:
 - **Descriptions** — Each flag documents its purpose
 
 ```go
-type ServeEntries struct {
-    Host     string `type:"Flag" identifiers:"-h,--host" 
+type ServeFlags struct {
+    Host     string `identifiers:"-h,--host" 
                       description:"the host address to bind to"`
-    Port     int    `type:"Flag" identifiers:"-p,--port" default:"8080"
+    Port     int    `identifiers:"-p,--port" default:"8080"
                       description:"the port number to listen on (default: 8080)"`
-    TLS      bool   `type:"Flag" identifiers:"--tls"
+    TLS      bool   `identifiers:"--tls"
                       description:"enable TLS/HTTPS"`
+}
+type ServeEntries struct {
+    Flags ServeFlags
 }
 ```
 
@@ -43,24 +46,30 @@ go run samples/flags/flags.go status --verbose --format json
 Demonstrates two types of positional argument handling:
 
 #### NextArg — Sequential Consumption
-Fields are filled in declaration order from remaining arguments.
+Fields without a `position` tag are filled in declaration order from remaining arguments.
 
 ```go
+type NextArgArgs struct {
+    Src  string `description:"source file path"`
+    Dest string `description:"destination file path"`
+}
 type NextArgEntries struct {
-    Src  string `type:"NextArg" description:"source file path"`
-    Dest string `type:"NextArg" description:"destination file path"`
+    Args NextArgArgs
 }
 ```
 
 #### Arg — Fixed Position
-Fields bind to a specific positional index.
+Fields with a `position` tag bind to a specific positional index.
 
 ```go
-type FixedArgEntries struct {
-    Filename string `type:"Arg" position:"0" 
+type FixedArgArgs struct {
+    Filename string `position:"0" 
                       description:"path to the file to open"`
-    LineNum  int    `type:"Arg" position:"1"
+    LineNum  int    `position:"1"
                       description:"line number to navigate to"`
+}
+type FixedArgEntries struct {
+    Args FixedArgArgs
 }
 ```
 
@@ -74,25 +83,31 @@ go run samples/positional/positional.go goto main.go 42 10
 
 ### [arrays/](arrays) — Array Arguments
 
-Demonstrates handling multiple values as arrays:
+Demonstrates handling multiple values as arrays. Any **slice-typed** field in `Args` or `Flags` is automatically treated as an array entry:
 
 #### ArrayFlag — Repeated Flag
-A flag that appears multiple times, each adding an element.
+A slice-typed field in `Flags`; the flag appears multiple times, each adding an element.
 
 ```go
-type ArrayFlagEntries struct {
-    Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1"
+type ArrayFlagFlags struct {
+    Tags []string `identifiers:"-t,--tag" min_size:"1"
                     description:"labels to apply (can be repeated)"`
+}
+type ArrayFlagEntries struct {
+    Flags ArrayFlagFlags
 }
 ```
 
 #### ArrayArg — Range of Positionals
-Collects positional arguments into a slice with optional bounds.
+A slice-typed field in `Args`; collects positional arguments into a slice with optional bounds.
 
 ```go
-type ArrayArgEntries struct {
-    Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2"
+type ArrayArgArgs struct {
+    Files []string `start:"0" end:"-1" min_size:"2"
                      description:"list of files to merge"`
+}
+type ArrayArgEntries struct {
+    Args ArrayArgArgs
 }
 ```
 
@@ -107,16 +122,22 @@ go run samples/arrays/arrays.go average -s 9.5 -s 8.0 -s 7.2
 
 ### [mixed/](mixed) — Combining Flags and Positional Args
 
-Shows how to mix flags and positional arguments in a single command. **Flags are extracted first**, then remaining tokens are treated as positional.
+Shows how to mix flags and positional arguments in a single command by declaring both an `Args` and a `Flags` sub-struct. **Flags are extracted first**, then remaining tokens are treated as positional.
 
 ```go
-type DeployEntries struct {
-    Service     string `type:"NextArg" description:"name of the service to deploy"`
-    Environment string `type:"NextArg" description:"target environment"`
-    Image       string `type:"Flag" identifiers:"-i,--image"
+type DeployArgs struct {
+    Service     string `description:"name of the service to deploy"`
+    Environment string `description:"target environment"`
+}
+type DeployFlags struct {
+    Image       string `identifiers:"-i,--image"
                          description:"container image to deploy"`
-    Replicas    int    `type:"Flag" identifiers:"-r,--replicas" default:"1"
+    Replicas    int    `identifiers:"-r,--replicas" default:"1"
                          description:"number of replicas (default: 1)"`
+}
+type DeployEntries struct {
+    Args  DeployArgs
+    Flags DeployFlags
 }
 ```
 
@@ -134,12 +155,26 @@ Demonstrates a real-world pattern with multiple subcommands, each with different
 
 - `init` — No arguments
 - `clone` — Positional URL + optional depth flag
-- `commit` — Required flag + optional flags with defaults
+- `commit` — Required flag + optional flags with defaults, plus a `deps.Deps` field auto-injected so the callback can call `e.deps.Print(...)`
 - `add` — Array positional args + boolean flag
 - `remote` — Fixed positional + array flag
 - `log` — All optional flags
 
 Each command showcases different combinations and includes descriptions.
+
+```go
+// commit demonstrates dependency injection: an unexported deps.Deps field
+// is populated by Argus before the callback runs.
+type CommitFlags struct {
+    Message string `identifiers:"-m,--message" description:"commit message"`
+    Author  string `identifiers:"--author" default:"current user" description:"commit author name"`
+    Amend   bool   `identifiers:"--amend" description:"amend the previous commit"`
+}
+type CommitEntries struct {
+    Flags CommitFlags
+    deps  deps.Deps
+}
+```
 
 **Run it:**
 ```bash
@@ -165,13 +200,16 @@ Demonstrates Argus's built-in type support:
 Each type is shown both as a flag and as a positional argument, with descriptions indicating the expected type.
 
 ```go
-type TypesAsFlagsEntries struct {
-    Name   string  `type:"Flag" identifiers:"-n,--name" 
+type TypesAsFlagsFlags struct {
+    Name   string  `identifiers:"-n,--name" 
                      description:"person's name (string)"`
-    Age    int     `type:"Flag" identifiers:"-a,--age"
+    Age    int     `identifiers:"-a,--age"
                      description:"person's age (int)"`
-    Score  float64 `type:"Flag" identifiers:"-s,--score"
+    Score  float64 `identifiers:"-s,--score"
                      description:"numeric score (float64)"`
+}
+type TypesAsFlagsEntries struct {
+    Flags TypesAsFlagsFlags
 }
 ```
 
@@ -192,8 +230,11 @@ Shows how to customize error messages and help output via the `Messages` struct.
 Each entry includes a description that's passed to the custom error handlers, allowing you to include contextual information in localized error messages.
 
 ```go
+type GreetArgs struct {
+    Name string `description:"nome da pessoa a cumprimentar"`
+}
 type GreetEntries struct {
-    Name string `type:"NextArg" description:"nome da pessoa a cumprimentar"`
+    Args GreetArgs
 }
 
 // Custom error handler receives the description
@@ -234,18 +275,18 @@ All samples use the `description` tag to document CLI arguments. These descripti
 
 ```go
 // Good: specific, mentions default
-Port int `type:"Flag" identifiers:"-p,--port" default:"8080"
+Port int `identifiers:"-p,--port" default:"8080"
            description:"port number (default: 8080)"`
 
 // Good: specifies constraint
-Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1"
+Tags []string `identifiers:"-t,--tag" min_size:"1"
                description:"labels to apply (1+ required, can repeat)"`
 
 // Bad: too vague
-Port int `type:"Flag" identifiers:"-p,--port" description:"port"`
+Port int `identifiers:"-p,--port" description:"port"`
 
 // Bad: redundant with identifier
-Host string `type:"Flag" identifiers:"-h,--host" description:"host flag"`
+Host string `identifiers:"-h,--host" description:"host flag"`
 ```
 
 ---
@@ -284,11 +325,13 @@ go run samples/custom_errors/custom_errors.go add -a 10 -b 20
 
 ## Key Takeaways
 
-1. **Descriptions are essential** — They make CLIs user-friendly and support localization
-2. **Flags are optional by design** — Use `required:"true"` to make one mandatory, or add `default` for fallback
-3. **Order matters for positional args** — `NextArg` consumes in declaration order; `Arg` uses fixed positions
-4. **Arrays can be bounded** — Use `start:`, `end:`, `min_size:`, `max_size:` to constrain
-5. **Mix flags and positionals freely** — Extract flags first, then fill positionals from remaining args
+1. **No `type` tag** — Argus infers `Flag`/`ArrayFlag`/`Arg`/`NextArg`/`ArrayArg` from where a field lives (`Args` vs `Flags`), whether it's a slice, and whether it has a `position` tag.
+2. **Descriptions are essential** — They make CLIs user-friendly and support localization
+3. **Flags are optional by design** — Use `required:"true"` to make one mandatory, or add `default` for fallback
+4. **Order matters for positional args** — Fields without `position` consume in declaration order; fields with `position` use fixed indices
+5. **Arrays can be bounded** — Use `start:`, `end:`, `min_size:`, `max_size:` to constrain
+6. **Mix flags and positionals freely** — Declare both `Args` and `Flags`; flags are extracted first, then positionals fill from remaining args
+7. **Callbacks can access Print/Args directly** — Add a `deps deps.Deps` field (exported or not) to have Argus auto-inject it
 
 ---
 

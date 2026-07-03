@@ -4,12 +4,23 @@ This guide covers everything about flags and positional arguments in Argus: thei
 
 ## Overview
 
-CLI arguments fall into two categories:
+CLI arguments fall into two categories, each living in its own sub-struct on the entries struct:
 
-- **Named Flags** — Arguments preceded by identifiers (`--host`, `-p`). Flags are optional by design.
-- **Positional Arguments** — Values without a preceding flag. Position matters, either fixed or sequential.
+- **`Flags`** — Arguments preceded by identifiers (`--host`, `-p`). Flags are optional by design.
+- **`Args`** — Values without a preceding flag. Position matters, either fixed or sequential.
 
-Each argument type has a `description` tag to document its purpose in help output and error messages.
+There is no `type` tag to set. Argus infers the entry kind from which sub-struct
+a field lives in, whether it's a slice, and whether it has a `position` tag:
+
+| Kind        | Sub-struct | Rule                                      |
+|-------------|-----------|---------------------------------------------|
+| `Flag`      | `Flags`   | non-slice field                              |
+| `ArrayFlag` | `Flags`   | slice field                                  |
+| `NextArg`   | `Args`    | non-slice field, no `position` tag           |
+| `Arg`       | `Args`    | non-slice field, has a `position` tag        |
+| `ArrayArg`  | `Args`    | slice field                                  |
+
+Each argument has a `description` tag to document its purpose in help output and error messages.
 
 ---
 
@@ -17,12 +28,16 @@ Each argument type has a `description` tag to document its purpose in help outpu
 
 ### Flag — Named Value
 
-A **flag** is a named argument that consumes the following token as its value.
+A **flag** is a named argument that consumes the following token as its value. Any non-slice field declared in a `Flags` sub-struct is a `Flag`.
 
 ```go
+type ServerConfigFlags struct {
+    Host string `identifiers:"--host,-h" description:"hostname or IP to bind to"`
+    Port int    `identifiers:"--port,-p" default:"8080" description:"port number (default: 8080)"`
+}
+
 type ServerConfig struct {
-    Host string `type:"Flag" identifiers:"--host,-h" description:"hostname or IP to bind to"`
-    Port int    `type:"Flag" identifiers:"--port,-p" default:"8080" description:"port number (default: 8080)"`
+    Flags ServerConfigFlags
 }
 ```
 
@@ -34,7 +49,7 @@ myapp -h localhost -p 3000
 
 #### Key Points
 
-- **Identifiers** — Comma-separated aliases. Short (`-p`) and long (`--port`) are both common. Order doesn't matter.
+- **Identifiers** — Comma-separated aliases. Short (`-p`) and long (`--port`) are both common. Order doesn't matter. **Required** on every `Flags` field.
 - **Value binding** — The next token after the identifier becomes the value.
 - **Optional by design** — Flags are always optional (even without `required:"false"`).
 - **Defaults** — Use `default:"<value>"` for fallback when the flag is absent.
@@ -49,24 +64,30 @@ The `description` tag documents the flag's purpose. It appears in:
 - Tool documentation
 
 ```go
-type DeployConfig struct {
-    Env string `type:"Flag" identifiers:"-e,--env" default:"staging" 
+type DeployConfigFlags struct {
+    Env string `identifiers:"-e,--env" default:"staging" 
                  description:"deployment environment: dev, staging, prod"`
-    Force bool `type:"Flag" identifiers:"-f,--force" 
+    Force bool `identifiers:"-f,--force" 
                description:"skip confirmation prompts"`
+}
+type DeployConfig struct {
+    Flags DeployConfigFlags
 }
 ```
 
 #### Boolean (Presence) Flags
 
-A `bool` field with `type:"Flag"` is a **presence flag** — no value is consumed. The flag is present or absent.
+A `bool` field in `Flags` is a **presence flag** — no value is consumed. The flag is present or absent.
 
 ```go
-type BuildOptions struct {
-    Verbose bool `type:"Flag" identifiers:"-v,--verbose" 
+type BuildOptionsFlags struct {
+    Verbose bool `identifiers:"-v,--verbose" 
                    description:"print detailed build logs"`
-    Release bool `type:"Flag" identifiers:"--release" 
+    Release bool `identifiers:"--release" 
                   description:"build in release mode with optimizations"`
+}
+type BuildOptions struct {
+    Flags BuildOptionsFlags
 }
 ```
 
@@ -75,29 +96,32 @@ type BuildOptions struct {
 myapp build --verbose
 myapp build --release --verbose
 myapp build
-# Verbose=false, Release=false
+# Flags.Verbose=false, Flags.Release=false
 ```
 
 ---
 
 ### ArrayFlag — Repeated Flag
 
-An **array flag** can appear multiple times; each occurrence appends an element to the slice.
+A **slice-typed** field in `Flags` can appear multiple times; each occurrence appends an element to the slice.
 
 ```go
-type PublishConfig struct {
-    Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" 
+type PublishConfigFlags struct {
+    Tags []string `identifiers:"-t,--tag" 
                     description:"labels to apply (can be repeated)"`
-    Servers []string `type:"ArrayFlag" identifiers:"-s,--server" min_size:"1"
+    Servers []string `identifiers:"-s,--server" min_size:"1"
                        description:"target servers (at least one required)"`
+}
+type PublishConfig struct {
+    Flags PublishConfigFlags
 }
 ```
 
 **Usage:**
 ```bash
 myapp publish -t bug -t urgent -t backend -s prod-1 -s prod-2
-# Tags = ["bug", "urgent", "backend"]
-# Servers = ["prod-1", "prod-2"]
+# Flags.Tags = ["bug", "urgent", "backend"]
+# Flags.Servers = ["prod-1", "prod-2"]
 ```
 
 #### Constraints on ArrayFlag
@@ -106,9 +130,12 @@ myapp publish -t bug -t urgent -t backend -s prod-1 -s prod-2
 - **`max_size`** — Maximum number of occurrences. `-1` or absent = unbounded.
 
 ```go
-type ImageOptions struct {
-    Layers []string `type:"ArrayFlag" identifiers:"-l,--layer" min_size:"1" max_size:"5"
+type ImageOptionsFlags struct {
+    Layers []string `identifiers:"-l,--layer" min_size:"1" max_size:"5"
                       description:"image layers to apply (1-5)"`
+}
+type ImageOptions struct {
+    Flags ImageOptionsFlags
 }
 ```
 
@@ -116,23 +143,26 @@ type ImageOptions struct {
 
 ## Positional Arguments
 
-Positional arguments are identified by their **position** in the command line, not by a flag name.
+Positional arguments are identified by their **position** in the command line, not by a flag name. They live in an `Args` sub-struct.
 
 ### NextArg — Sequential Consumption
 
-Each `NextArg` field consumes the next positional argument in declaration order.
+Any non-slice field in `Args` **without** a `position` tag consumes the next positional argument in declaration order.
 
 ```go
+type CopyEntriesArgs struct {
+    Src  string `description:"source file path"`
+    Dest string `description:"destination file path"`
+}
 type CopyEntries struct {
-    Src  string `type:"NextArg" description:"source file path"`
-    Dest string `type:"NextArg" description:"destination file path"`
+    Args CopyEntriesArgs
 }
 ```
 
 **Usage:**
 ```bash
 myapp copy readme.md /tmp/readme-backup.md
-# Src = "readme.md", Dest = "/tmp/readme-backup.md"
+# Args.Src = "readme.md", Args.Dest = "/tmp/readme-backup.md"
 ```
 
 #### Key Points
@@ -142,10 +172,13 @@ myapp copy readme.md /tmp/readme-backup.md
 - **Type coercion** — Parsed according to field type (string, int, float64, etc.).
 
 ```go
-type GreetEntries struct {
-    Name string `type:"NextArg" description:"person's name"`
-    Age  int    `type:"NextArg" required:"false" default:"0" 
+type GreetEntriesArgs struct {
+    Name string `description:"person's name"`
+    Age  int    `required:"false" default:"0" 
                  description:"person's age (optional)"`
+}
+type GreetEntries struct {
+    Args GreetEntriesArgs
 }
 ```
 
@@ -153,21 +186,24 @@ type GreetEntries struct {
 
 ### Arg — Fixed Position
 
-An **Arg** binds to a specific positional index via the `position` tag.
+A non-slice field in `Args` with a **`position`** tag binds to a specific positional index.
 
 ```go
-type NavigateEntries struct {
-    Filename string `type:"Arg" position:"0" description:"file path"`
-    LineNum  int    `type:"Arg" position:"1" description:"line number"`
-    ColNum   int    `type:"Arg" position:"2" required:"false" 
+type NavigateEntriesArgs struct {
+    Filename string `position:"0" description:"file path"`
+    LineNum  int    `position:"1" description:"line number"`
+    ColNum   int    `position:"2" required:"false" 
                      description:"column number (optional)"`
+}
+type NavigateEntries struct {
+    Args NavigateEntriesArgs
 }
 ```
 
 **Usage:**
 ```bash
-myapp goto main.go 42        # Filename="main.go", LineNum=42, ColNum=0
-myapp goto main.go 42 10     # Filename="main.go", LineNum=42, ColNum=10
+myapp goto main.go 42        # Args.Filename="main.go", Args.LineNum=42, Args.ColNum=0
+myapp goto main.go 42 10     # Args.Filename="main.go", Args.LineNum=42, Args.ColNum=10
 ```
 
 #### Key Points
@@ -180,19 +216,22 @@ myapp goto main.go 42 10     # Filename="main.go", LineNum=42, ColNum=10
 
 ### ArrayArg — Range of Positionals
 
-An **array arg** collects a contiguous range of positional arguments into a slice. Use `start` and `end` to define bounds; `-1` = to the end.
+A **slice-typed** field in `Args` collects a contiguous range of positional arguments. Use `start` and `end` to define bounds; `-1` = to the end.
 
 ```go
-type MergeEntries struct {
-    Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2"
+type MergeEntriesArgs struct {
+    Files []string `start:"0" end:"-1" min_size:"2"
                      description:"list of files to merge (at least 2)"`
+}
+type MergeEntries struct {
+    Args MergeEntriesArgs
 }
 ```
 
 **Usage:**
 ```bash
 myapp merge file1.txt file2.txt file3.txt
-# Files = ["file1.txt", "file2.txt", "file3.txt"]
+# Args.Files = ["file1.txt", "file2.txt", "file3.txt"]
 ```
 
 #### Bounded Windows
@@ -200,16 +239,19 @@ myapp merge file1.txt file2.txt file3.txt
 Capture only specific positional indices:
 
 ```go
-type SwapEntries struct {
-    Pair []string `type:"ArrayArg" start:"0" end:"2" min_size:"2" max_size:"2"
+type SwapEntriesArgs struct {
+    Pair []string `start:"0" end:"2" min_size:"2" max_size:"2"
                     description:"two files to swap"`
+}
+type SwapEntries struct {
+    Args SwapEntriesArgs
 }
 ```
 
 **Usage:**
 ```bash
 myapp swap left.txt right.txt extra.txt
-# Pair = ["left.txt", "right.txt"]  (end:"2" stops after index 1)
+# Args.Pair = ["left.txt", "right.txt"]  (end:"2" stops after index 1)
 ```
 
 #### Constraints on ArrayArg
@@ -218,9 +260,12 @@ myapp swap left.txt right.txt extra.txt
 - **`max_size`** — Maximum element count. `-1` or absent = unbounded.
 
 ```go
-type ProcessOptions struct {
-    Inputs []string `type:"ArrayArg" start:"0" end:"-1" min_size:"1" max_size:"10"
+type ProcessOptionsArgs struct {
+    Inputs []string `start:"0" end:"-1" min_size:"1" max_size:"10"
                       description:"input files (1-10)"`
+}
+type ProcessOptions struct {
+    Args ProcessOptionsArgs
 }
 ```
 
@@ -228,27 +273,33 @@ type ProcessOptions struct {
 
 ## Combining Flags and Positional Arguments
 
-Flags and positional arguments can coexist in the same struct. **Flags are extracted first**, then remaining tokens are treated as positional.
+`Args` and `Flags` can coexist on the same entries struct. **Flags are extracted first**, then remaining tokens are treated as positional.
 
 ```go
-type ExtractEntries struct {
-    Archive  string   `type:"NextArg" description:"archive file to extract from"`
-    Files    []string `type:"ArrayArg" start:"1" end:"-1" 
+type ExtractEntriesArgs struct {
+    Archive string   `description:"archive file to extract from"`
+    Files   []string `start:"1" end:"-1" 
                        description:"files to extract (optional)"`
-    Output   string   `type:"Flag" identifiers:"-o,--output" default:"."
-                       description:"output directory"`
-    Verbose  bool     `type:"Flag" identifiers:"-v,--verbose"
-                       description:"print extraction details"`
+}
+type ExtractEntriesFlags struct {
+    Output  string `identifiers:"-o,--output" default:"."
+                     description:"output directory"`
+    Verbose bool   `identifiers:"-v,--verbose"
+                     description:"print extraction details"`
+}
+type ExtractEntries struct {
+    Args  ExtractEntriesArgs
+    Flags ExtractEntriesFlags
 }
 ```
 
 **Usage:**
 ```bash
 myapp extract archive.tar.gz file1.txt file2.txt -o /tmp -v
-# Archive = "archive.tar.gz"
-# Files = ["file1.txt", "file2.txt"]
-# Output = "/tmp"
-# Verbose = true
+# Args.Archive = "archive.tar.gz"
+# Args.Files = ["file1.txt", "file2.txt"]
+# Flags.Output = "/tmp"
+# Flags.Verbose = true
 ```
 
 ---
@@ -266,27 +317,26 @@ The `description` tag appears in help text and error messages. Write description
 #### Good Descriptions
 
 ```go
-Host     string `type:"Flag" identifiers:"--host" 
+Host     string `identifiers:"--host" 
                   description:"hostname or IP to bind to"`
-Port     int    `type:"Flag" identifiers:"--port" default:"8080"
+Port     int    `identifiers:"--port" default:"8080"
                   description:"port number (default: 8080)"`
-Tags     []string `type:"ArrayFlag" identifiers:"-t,--tag"
+Tags     []string `identifiers:"-t,--tag"
                     description:"labels to apply (can be repeated)"`
-Src      string `type:"NextArg"
-                  description:"source file path"`
+Src      string `description:"source file path"`
 ```
 
 #### Descriptions to Avoid
 
 ```go
 // Too vague
-Port int `type:"Flag" identifiers:"--port" description:"the port"`
+Port int `identifiers:"--port" description:"the port"`
 
 // Redundant with flag name
-Host string `type:"Flag" identifiers:"--host" description:"host flag"`
+Host string `identifiers:"--host" description:"host flag"`
 
 // Unclear constraints
-Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" 
+Tags []string `identifiers:"-t,--tag" 
                description:"tags"`
 ```
 
@@ -326,40 +376,55 @@ All errors reference the `description` tag to guide users.
 ### Web Server with Host/Port Flags
 
 ```go
-type ServeEntries struct {
-    Host      string `type:"Flag" identifiers:"-h,--host" default:"localhost"
+type ServeEntriesFlags struct {
+    Host      string `identifiers:"-h,--host" default:"localhost"
                        description:"hostname to bind to"`
-    Port      int    `type:"Flag" identifiers:"-p,--port" default:"8080"
+    Port      int    `identifiers:"-p,--port" default:"8080"
                        description:"port number (default: 8080)"`
-    TLS       bool   `type:"Flag" identifiers:"--tls"
+    TLS       bool   `identifiers:"--tls"
                        description:"enable HTTPS"`
-    CertFile  string `type:"Flag" identifiers:"--cert-file" required:"false"
+    CertFile  string `identifiers:"--cert-file" required:"false"
                        description:"path to SSL certificate (required if --tls)"`
+}
+type ServeEntries struct {
+    Flags ServeEntriesFlags
 }
 ```
 
 ### File Processing with Output Flag
 
 ```go
-type ProcessEntries struct {
-    Input    string `type:"NextArg" description:"input file path"`
-    Output   string `type:"Flag" identifiers:"-o,--output" required:"false"
+type ProcessEntriesArgs struct {
+    Input string `description:"input file path"`
+}
+type ProcessEntriesFlags struct {
+    Output   string `identifiers:"-o,--output" required:"false"
                       description:"output file path (default: stdout)"`
-    Parallel bool   `type:"Flag" identifiers:"-p,--parallel"
+    Parallel bool   `identifiers:"-p,--parallel"
                       description:"process in parallel"`
+}
+type ProcessEntries struct {
+    Args  ProcessEntriesArgs
+    Flags ProcessEntriesFlags
 }
 ```
 
 ### Multi-File Operations
 
 ```go
-type MergeEntries struct {
-    Output   string   `type:"Flag" identifiers:"-o,--output" default:"merged.txt"
+type MergeEntriesFlags struct {
+    Output   string   `identifiers:"-o,--output" default:"merged.txt"
                         description:"output file path"`
-    Format   string   `type:"Flag" identifiers:"-f,--format" default:"text"
+    Format   string   `identifiers:"-f,--format" default:"text"
                         description:"output format: text, json, csv"`
-    Files    []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2"
-                        description:"input files to merge (minimum 2)"`
+}
+type MergeEntriesArgs struct {
+    Files []string `start:"0" end:"-1" min_size:"2"
+                     description:"input files to merge (minimum 2)"`
+}
+type MergeEntries struct {
+    Args  MergeEntriesArgs
+    Flags MergeEntriesFlags
 }
 
 // Usage: merge file1 file2 file3 -o output.txt -f json

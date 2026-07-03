@@ -8,61 +8,79 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
-// ArrayArgEntries demonstrates ArrayArg — collecting a contiguous range
-// of positional arguments into a slice.
+// ArrayArgArgs demonstrates ArrayArg — collecting a contiguous range
+// of positional arguments into a slice. Any slice-typed field inside an
+// Args sub-struct is inferred as ArrayArg.
 //   - start:"0" end:"-1" means capture ALL positional args.
 //   - min_size:"2" enforces at least 2 files.
+type ArrayArgArgs struct {
+	Files []string `start:"0" end:"-1" min_size:"2" description:"list of files to merge"`
+}
+
 type ArrayArgEntries struct {
-	Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2" description:"list of files to merge"`
+	Args ArrayArgArgs
 }
 
 func merge(e ArrayArgEntries) int {
-	fmt.Printf("Merging %d files:\n", len(e.Files))
-	for i, f := range e.Files {
+	fmt.Printf("Merging %d files:\n", len(e.Args.Files))
+	for i, f := range e.Args.Files {
 		fmt.Printf("  [%d] %s\n", i+1, f)
 	}
 	return 0
 }
 
-// BoundedArrayEntries demonstrates a bounded ArrayArg window.
+// BoundedArrayArgs demonstrates a bounded ArrayArg window.
 //   - start:"0" end:"2" captures only the first 2 positional args.
+type BoundedArrayArgs struct {
+	Pair []string `start:"0" end:"2" min_size:"2" max_size:"2" description:"two files to swap"`
+}
+
 type BoundedArrayEntries struct {
-	Pair []string `type:"ArrayArg" start:"0" end:"2" min_size:"2" max_size:"2" description:"two files to swap"`
+	Args BoundedArrayArgs
 }
 
 func swap(e BoundedArrayEntries) int {
-	fmt.Printf("Swapping: '%s' ↔ '%s'\n", e.Pair[0], e.Pair[1])
+	fmt.Printf("Swapping: '%s' ↔ '%s'\n", e.Args.Pair[0], e.Args.Pair[1])
 	return 0
 }
 
-// ArrayFlagEntries demonstrates ArrayFlag — a flag that can be repeated
-// multiple times to build a slice.
+// ArrayFlagFlags demonstrates ArrayFlag — a flag that can be repeated
+// multiple times to build a slice. Any slice-typed field inside a Flags
+// sub-struct is inferred as ArrayFlag.
 //   - min_size:"1" requires at least one tag.
 //   - max_size:"-1" means unbounded.
+type ArrayFlagFlags struct {
+	Tags []string `identifiers:"-t,--tag" min_size:"1" max_size:"-1" description:"labels to apply (can be repeated)"`
+}
+
 type ArrayFlagEntries struct {
-	Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1" max_size:"-1" description:"labels to apply (can be repeated)"`
+	Flags ArrayFlagFlags
 }
 
 func tag(e ArrayFlagEntries) int {
-	fmt.Printf("Tags applied (%d):\n", len(e.Tags))
-	for _, t := range e.Tags {
+	fmt.Printf("Tags applied (%d):\n", len(e.Flags.Tags))
+	for _, t := range e.Flags.Tags {
 		fmt.Printf("  • %s\n", t)
 	}
 	return 0
 }
 
-// ArrayFlagNumEntries demonstrates ArrayFlag with numeric types.
+// ArrayFlagNumFlags demonstrates ArrayFlag with numeric types.
+type ArrayFlagNumFlags struct {
+	Scores []float64 `identifiers:"-s,--score" min_size:"1" description:"numeric scores (can be repeated)"`
+}
+
 type ArrayFlagNumEntries struct {
-	Scores []float64 `type:"ArrayFlag" identifiers:"-s,--score" min_size:"1" description:"numeric scores (can be repeated)"`
+	Flags ArrayFlagNumFlags
 }
 
 func average(e ArrayFlagNumEntries) int {
 	sum := 0.0
-	for _, s := range e.Scores {
+	for _, s := range e.Flags.Scores {
 		sum += s
 	}
-	avg := sum / float64(len(e.Scores))
-	fmt.Printf("Scores: %v\n", e.Scores)
+	avg := sum / float64(len(e.Flags.Scores))
+	fmt.Printf("Scores: %v\n", e.Flags.Scores)
 	fmt.Printf("Average: %.2f\n", avg)
 	return 0
 }

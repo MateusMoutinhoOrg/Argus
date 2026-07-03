@@ -13,22 +13,30 @@ import (
 // Messages struct with function fields so you can fully
 // localize or restyle the messages.
 
+type GreetArgs struct {
+	Name string `description:"nome da pessoa a cumprimentar"`
+}
+
 type GreetEntries struct {
-	Name string `type:"NextArg" description:"nome da pessoa a cumprimentar"`
+	Args GreetArgs
 }
 
 func greet(e GreetEntries) int {
-	fmt.Printf("Olá, %s! Bem-vindo ao sistema.\n", e.Name)
+	fmt.Printf("Olá, %s! Bem-vindo ao sistema.\n", e.Args.Name)
 	return 0
 }
 
+type MathFlags struct {
+	A float64 `identifiers:"-a" description:"primeiro número"`
+	B float64 `identifiers:"-b" description:"segundo número"`
+}
+
 type MathEntries struct {
-	A float64 `type:"Flag" identifiers:"-a" description:"primeiro número"`
-	B float64 `type:"Flag" identifiers:"-b" description:"segundo número"`
+	Flags MathFlags
 }
 
 func add(e MathEntries) int {
-	fmt.Printf("%.2f + %.2f = %.2f\n", e.A, e.B, e.A+e.B)
+	fmt.Printf("%.2f + %.2f = %.2f\n", e.Flags.A, e.Flags.B, e.Flags.A+e.Flags.B)
 	return 0
 }
 

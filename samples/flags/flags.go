@@ -9,42 +9,53 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
-// ServeEntries demonstrates:
+// ServeFlags demonstrates:
 //   - Required string flag (Host)
 //   - Optional int flag with default (Port)
 //   - Boolean presence flag (TLS)
 //   - Optional string flag with default (LogLevel)
+//
+// Every field lives in a Flags sub-struct with an `identifiers` tag; Argus
+// infers it's a Flag (or ArrayFlag, for slice fields) automatically.
+type ServeFlags struct {
+	Host     string `identifiers:"-h,--host" description:"the host address to bind to"`
+	Port     int    `identifiers:"-p,--port" default:"8080" description:"the port number to listen on (default: 8080)"`
+	TLS      bool   `identifiers:"--tls" description:"enable TLS/HTTPS"`
+	LogLevel string `identifiers:"-l,--log-level" default:"info" description:"logging level: debug, info, warn, error (default: info)"`
+}
+
 type ServeEntries struct {
-	Host     string `type:"Flag" identifiers:"-h,--host" description:"the host address to bind to"`
-	Port     int    `type:"Flag" identifiers:"-p,--port" default:"8080" description:"the port number to listen on (default: 8080)"`
-	TLS      bool   `type:"Flag" identifiers:"--tls" description:"enable TLS/HTTPS"`
-	LogLevel string `type:"Flag" identifiers:"-l,--log-level" default:"info" description:"logging level: debug, info, warn, error (default: info)"`
+	Flags ServeFlags
 }
 
 func serve(e ServeEntries) int {
 	scheme := "http"
-	if e.TLS {
+	if e.Flags.TLS {
 		scheme = "https"
 	}
 	fmt.Println(strings.Repeat("─", 40))
 	fmt.Printf("  Server starting…\n")
-	fmt.Printf("  Address:   %s://%s:%d\n", scheme, e.Host, e.Port)
-	fmt.Printf("  TLS:       %v\n", e.TLS)
-	fmt.Printf("  Log level: %s\n", e.LogLevel)
+	fmt.Printf("  Address:   %s://%s:%d\n", scheme, e.Flags.Host, e.Flags.Port)
+	fmt.Printf("  TLS:       %v\n", e.Flags.TLS)
+	fmt.Printf("  Log level: %s\n", e.Flags.LogLevel)
 	fmt.Println(strings.Repeat("─", 40))
 	return 0
 }
 
-// StatusEntries demonstrates a command with no required flags —
+// StatusFlags demonstrates a command with no required flags —
 // only boolean presence flags and optional flags.
+type StatusFlags struct {
+	Verbose bool   `identifiers:"-v,--verbose"`
+	Format  string `identifiers:"-f,--format" default:"text"`
+}
+
 type StatusEntries struct {
-	Verbose bool   `type:"Flag" identifiers:"-v,--verbose"`
-	Format  string `type:"Flag" identifiers:"-f,--format" default:"text"`
+	Flags StatusFlags
 }
 
 func status(e StatusEntries) int {
-	fmt.Printf("Status (format=%s, verbose=%v)\n", e.Format, e.Verbose)
-	if e.Verbose {
+	fmt.Printf("Status (format=%s, verbose=%v)\n", e.Flags.Format, e.Flags.Verbose)
+	if e.Flags.Verbose {
 		fmt.Println("  PID:    12345")
 		fmt.Println("  Uptime: 3h42m")
 		fmt.Println("  Memory: 128 MB")

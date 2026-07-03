@@ -36,18 +36,22 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
+type ServeFlags struct {
+	Host string `identifiers:"-h,--host" default:"localhost" description:"hostname to bind to (default: localhost)"`
+	Port int    `identifiers:"-p,--port" default:"8080" description:"port number (default: 8080)"`
+	TLS  bool   `identifiers:"--tls" description:"enable HTTPS"`
+}
+
 type ServeEntries struct {
-	Host string `type:"Flag" identifiers:"-h,--host" default:"localhost" description:"hostname to bind to (default: localhost)"`
-	Port int    `type:"Flag" identifiers:"-p,--port" default:"8080" description:"port number (default: 8080)"`
-	TLS  bool   `type:"Flag" identifiers:"--tls" description:"enable HTTPS"`
+	Flags ServeFlags
 }
 
 func serve(e ServeEntries) int {
 	scheme := "http"
-	if e.TLS {
+	if e.Flags.TLS {
 		scheme = "https"
 	}
-	fmt.Printf("Listening on %s://%s:%d\n", scheme, e.Host, e.Port)
+	fmt.Printf("Listening on %s://%s:%d\n", scheme, e.Flags.Host, e.Flags.Port)
 	return 0
 }
 
@@ -148,15 +152,19 @@ go get github.com/MateusMoutinhoOrg/Argus@v0.0.2
 ### 1. Simple Command with Flags
 
 ```go
-type DeployEntries struct {
-	Env    string `type:"Flag" identifiers:"-e,--env" default:"staging" 
+type DeployFlags struct {
+	Env    string `identifiers:"-e,--env" default:"staging" 
 	                 description:"deployment environment (default: staging)"`
-	Force  bool   `type:"Flag" identifiers:"-f,--force"
+	Force  bool   `identifiers:"-f,--force"
 	               description:"force deployment without confirmation"`
 }
 
+type DeployEntries struct {
+	Flags DeployFlags
+}
+
 func deploy(e DeployEntries) int {
-	fmt.Printf("Deploying to %s (force=%v)\n", e.Env, e.Force)
+	fmt.Printf("Deploying to %s (force=%v)\n", e.Flags.Env, e.Flags.Force)
 	return 0
 }
 ```
@@ -176,15 +184,21 @@ props := argus.GenerationProps{
 ### 3. Positional Arguments
 
 ```go
+type CopyArgs struct {
+	Src string `description:"source file path"`
+	Dst string `description:"destination file path"`
+}
+type CopyFlags struct {
+	Force bool `identifiers:"-f,--force" 
+	             description:"overwrite destination without prompting"`
+}
 type CopyEntries struct {
-	Src   string `type:"NextArg" description:"source file path"`
-	Dst   string `type:"NextArg" description:"destination file path"`
-	Force bool   `type:"Flag" identifiers:"-f,--force" 
-	               description:"overwrite destination without prompting"`
+	Args  CopyArgs
+	Flags CopyFlags
 }
 
 func copy(e CopyEntries) int {
-	fmt.Printf("Copying %s → %s\n", e.Src, e.Dst)
+	fmt.Printf("Copying %s → %s\n", e.Args.Src, e.Args.Dst)
 	return 0
 }
 ```
@@ -215,15 +229,21 @@ func TestServe(t *testing.T) {
 Each field can have a `description` tag that documents its purpose. This description appears in auto-generated help output and error messages.
 
 ```go
-type ServeEntries struct {
-    Host     string `type:"Flag" identifiers:"--host,-h" 
+type ServeFlags struct {
+    Host     string `identifiers:"--host,-h" 
                       description:"hostname or IP to bind to"`
-    Port     int    `type:"Flag" identifiers:"--port,-p" default:"8080"
+    Port     int    `identifiers:"--port,-p" default:"8080"
                       description:"port number (default: 8080)"`
-    TLS      bool   `type:"Flag" identifiers:"--tls"
+    TLS      bool   `identifiers:"--tls"
                       description:"enable HTTPS"`
-    Files    []string `type:"ArrayArg" start:"0" end:"-1" min_size:"1"
+}
+type ServeArgs struct {
+    Files    []string `start:"0" end:"-1" min_size:"1"
                         description:"input files (at least one required)"`
+}
+type ServeEntries struct {
+    Flags ServeFlags
+    Args  ServeArgs
 }
 ```
 
@@ -233,16 +253,17 @@ See [Flags and Arguments Guide](docs/flags_and_args.md) for patterns and best pr
 
 ## Tag System Reference
 
-Each struct field declares how it's populated via tags:
+There's no `type` tag — Argus infers the entry kind from the field's containing
+sub-struct (`Args` vs `Flags`), whether it's a slice, and whether it has a
+`position` tag. See the table in [docs/entries.md](docs/entries.md#entry-types-inferred-not-declared).
 
 | Tag | Values | Example |
 |-----|--------|---------|
-| `type` | `Flag`, `Arg`, `NextArg`, `ArrayFlag`, `ArrayArg` | `type:"Flag"` |
-| `identifiers` | Comma-separated flag aliases | `identifiers:"-p,--port"` |
-| `position` | Index for `Arg` type | `position:"0"` |
+| `identifiers` | Comma-separated flag aliases (fields in `Flags`) | `identifiers:"-p,--port"` |
+| `position` | Index for a fixed-position field in `Args` | `position:"0"` |
 | `required` | `"true"` or `"false"` | `required:"false"` |
 | `default` | Default value as string | `default:"8080"` |
-| `start`, `end` | Array bounds (for `ArrayArg`) | `start:"0" end:"-1"` |
+| `start`, `end` | Array bounds (for slice fields in `Args`) | `start:"0" end:"-1"` |
 | `min_size`, `max_size` | Array size constraints | `min_size:"1" max_size:"10"` |
 | `description` | Description for help and errors | `description:"port to listen on"` |
 
@@ -292,8 +313,8 @@ See [docs/deps.md](docs/deps.md) for comprehensive testing patterns.
 ## Design Philosophy
 
 - **Reflection over codegen** — Struct tags + reflection = zero build-time overhead
-- **Explicit over implicit** — Tags make intent clear; no magic defaults
-- **Testing first** — Dependency injection built in from the start
+- **Inferred by shape, not declared** — Entry kind comes from where a field lives (`Args`/`Flags`) and its shape (slice, `position` tag); no `type` tag to keep in sync
+- **Testing first** — Dependency injection built in from the start, including auto-injection into callback structs
 - **Validation upfront** — Errors surface at configuration time, not parse time
 - **Open-ended by default** — Array arguments are unbounded; constrain with `min_size`/`max_size`
 
@@ -321,10 +342,10 @@ Contributions welcome! Please ensure:
 ## FAQ
 
 **Q: Do I need to export struct fields?**  
-A: Yes, Argus uses reflection and can only access exported fields. The examples use capitalized field names.
+A: Yes, for fields inside `Args` and `Flags` — Argus uses reflection and can only read/write exported fields there. The one exception is a `deps.Deps` field, which Argus auto-injects even when unexported.
 
-**Q: Can I combine multiple entry types in one struct?**  
-A: Yes! Flags are extracted first, then positional arguments fill the remaining tokens.
+**Q: Can I combine Args and Flags in one struct?**  
+A: Yes! Declare both an `Args` and a `Flags` sub-struct on the entries struct. Flags are extracted first, then positional arguments fill the remaining tokens.
 
 **Q: How do I handle subcommands deeper than one level?**  
 A: Argus handles single-level commands natively. For deeper nesting, write a wrapper command that parses the next level manually. See `samples/gitlike/` for patterns.

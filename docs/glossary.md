@@ -3,12 +3,18 @@
 ## Key Terms
 
 ### Entries Struct
-A Go struct whose fields define what CLI arguments a command accepts. Each field is tagged with parsing instructions (`type:"Flag"`, `type:"Arg"`, etc.). The struct is passed to a callback function when the command is invoked.
+A Go struct passed to a callback function when a command is invoked. It's composed
+of up to three parts: an `Args` struct (positional arguments), a `Flags` struct
+(named flags), and an optional `deps.Deps` field. Argus infers how each field
+inside `Args`/`Flags` is parsed — there's no `type` tag to set.
 
 ```go
+type ServeFlags struct {
+	Host string `identifiers:"-h,--host"`
+	Port int    `identifiers:"-p,--port"`
+}
 type ServeEntries struct {
-	Host string `type:"Flag" identifiers:"-h,--host"`
-	Port int    `type:"Flag" identifiers:"-p,--port"`
+	Flags ServeFlags
 }
 ```
 
@@ -17,13 +23,15 @@ A user-defined function that executes when a command is matched. It receives a s
 
 ```go
 func serve(e ServeEntries) int {
-	fmt.Printf("Server on %s:%d\n", e.Host, e.Port)
+	fmt.Printf("Server on %s:%d\n", e.Flags.Host, e.Flags.Port)
 	return 0 // exit code
 }
 ```
 
 ### Flag
-A named argument preceded by a dash (e.g., `--port` or `-p`). Flags accept optional values; boolean flags are presence-only (no value needed).
+A named argument preceded by a dash (e.g., `--port` or `-p`), declared as a
+non-slice field inside a `Flags` sub-struct. Flags accept optional values;
+boolean flags are presence-only (no value needed).
 
 ```bash
 # Flag with value
@@ -34,7 +42,8 @@ myapp build --verbose
 ```
 
 ### Positional Argument
-An argument without a flag prefix, consumed in order. Used for required or sequential data.
+An argument without a flag prefix, consumed in order, declared as a field inside
+an `Args` sub-struct. Used for required or sequential data.
 
 ```bash
 # Three positional arguments
@@ -45,9 +54,9 @@ myapp copy src.txt dst.txt backup.txt
 A metadata annotation on a struct field that tells Argus how to parse and validate that field.
 
 ```go
-Port int `type:"Flag" identifiers:"-p,--port" default:"8080"`
-//  ╭──────────────────────────────────────────────────╯
-//  └─ Struct tag: tells Argus this is a flag named "-p" or "--port"
+Port int `identifiers:"-p,--port" default:"8080"`
+//  ╭──────────────────────────────────────────╯
+//  └─ Struct tag: tells Argus this flag is named "-p" or "--port"
 ```
 
 ### Deps (Dependency Injection)
@@ -65,6 +74,22 @@ testDeps := deps.Deps{
 a := argus.New(&testDeps)
 ```
 
+Argus can also auto-inject the same `Deps` value directly into a callback's
+entries struct: declare a field of type `deps.Deps` (exported or not) and it
+will be populated before the callback runs.
+
+```go
+type CommitEntries struct {
+	Flags CommitFlags
+	deps  deps.Deps // auto-injected
+}
+
+func commit(e CommitEntries) int {
+	e.deps.Print("committed")
+	return 0
+}
+```
+
 ### Message
 A customizable, user-facing text output (error, help, usage). All messages are defined as functions in the `Messages` struct, allowing localization and branding.
 
@@ -72,21 +97,24 @@ A customizable, user-facing text output (error, help, usage). All messages are d
 
 ### "Field must be exported" Error
 
-**Problem:** Struct fields are lowercase (unexported).
+**Problem:** Fields inside `Args` or `Flags` are lowercase (unexported). Argus reads/writes them via reflection and can only access exported fields.
 
 ```go
-type ServeEntries struct {
-	port int `type:"Flag" identifiers:"-p,--port"` // ✗ lowercase
+type ServeFlags struct {
+	port int `identifiers:"-p,--port"` // ✗ lowercase
 }
 ```
 
-**Solution:** Capitalize field names; Go reflection can only access exported (public) fields.
+**Solution:** Capitalize field names inside `Args`/`Flags`; Go reflection can only access exported (public) fields.
 
 ```go
-type ServeEntries struct {
-	Port int `type:"Flag" identifiers:"-p,--port"` // ✓ uppercase
+type ServeFlags struct {
+	Port int `identifiers:"-p,--port"` // ✓ uppercase
 }
 ```
+
+> The one exception is a `deps.Deps` field — that one *can* stay unexported,
+> since Argus special-cases it for auto-injection. See *Deps* above.
 
 ---
 
@@ -102,7 +130,7 @@ myapp serve --p 8080
 **Solution:** Check the struct tag for the correct flag name.
 
 ```go
-Port int `type:"Flag" identifiers:"-p,--port"` // ✓ recognizes -p or --port
+Port int `identifiers:"-p,--port"` // ✓ recognizes -p or --port
 ```
 
 ---
@@ -119,9 +147,9 @@ myapp serve --port 8080
 **Solution:** Either provide the flag or make it optional with `required:"false"` or `default:"value"`.
 
 ```go
-Host string `type:"Flag" identifiers:"-h,--host" required:"false"` // now optional
+Host string `identifiers:"-h,--host" required:"false"` // now optional
 // or
-Host string `type:"Flag" identifiers:"-h,--host" default:"localhost"` // optional + default
+Host string `identifiers:"-h,--host" default:"localhost"` // optional + default
 ```
 
 ---
@@ -155,7 +183,7 @@ myapp copy src.txt
 **Solution:** Provide all required positional arguments in order, or make them optional.
 
 ```go
-Dst string `type:"NextArg" required:"false"` // now optional
+Dst string `required:"false"` // now optional
 ```
 
 ---
@@ -170,14 +198,14 @@ myapp tag file1 file2 file3
 # Actual: Files=[file1]
 ```
 
-**Solution:** Ensure `ArrayArg` has proper bounds, and check that flags are repeated for `ArrayFlag`.
+**Solution:** Any **slice-typed** field in `Args`/`Flags` is automatically treated as an array entry. Ensure `ArrayArg` has proper bounds, and check that flags are repeated for `ArrayFlag`.
 
 ```go
-// For ArrayArg, specify the range:
-Files []string `type:"ArrayArg" start:"0" end:"-1"`
+// For ArrayArg (a slice field in Args), specify the range:
+Files []string `start:"0" end:"-1"`
 
-// For ArrayFlag, repeat the flag:
-Tags []string `type:"ArrayFlag" identifiers:"-t,--tag"`
+// For ArrayFlag (a slice field in Flags), repeat the flag:
+Tags []string `identifiers:"-t,--tag"`
 ```
 
 Usage:
@@ -189,16 +217,33 @@ myapp -t bug -t feature -t urgent    # ✓ ArrayFlag repeats the flag
 
 ---
 
+### "field 'X' is not recognized" Error
+
+**Problem:** The entries struct has a top-level field that isn't `Args`, `Flags`, or a `deps.Deps` field.
+
+```go
+type ServeEntries struct {
+	Flags ServeFlags
+	Extra string // ✗ not recognized
+}
+```
+
+**Solution:** The top-level entries struct may only contain `Args`, `Flags`, and
+an optional `deps.Deps` field. Move any other data into `Args` or `Flags`, or
+drop it.
+
+---
+
 ### "Invalid struct tag syntax" (silent failure)
 
 **Problem:** Struct tag has a space after the colon; Go's `reflect.StructTag.Get()` ignores it.
 
 ```go
 // ✗ Space after colon — tag is ignored
-Port int `type: "Flag" identifiers: "-p,--port"`
+Port int `identifiers: "-p,--port"`
 
 // ✓ No spaces — correct syntax
-Port int `type:"Flag" identifiers:"-p,--port"`
+Port int `identifiers:"-p,--port"`
 ```
 
 **Solution:** Use Go's canonical struct tag format: `key:"value"` with no spaces.
@@ -263,8 +308,8 @@ props := argus.GenerationProps{
 **Problem:** Boolean flag always reads a value (consumes the next arg).
 
 ```go
-// ✗ String field with Flag type reads a value
-Debug string `type:"Flag" identifiers:"--debug"`
+// ✗ String field reads a value
+Debug string `identifiers:"--debug"`
 
 // Usage: myapp --debug true
 // 'true' is the value; myapp --debug is incomplete
@@ -274,10 +319,10 @@ Debug string `type:"Flag" identifiers:"--debug"`
 
 ```go
 // ✓ Boolean flag — presence-only, no value consumed
-Debug bool `type:"Flag" identifiers:"--debug"`
+Debug bool `identifiers:"--debug"`
 
 // ✓ String flag — consumes next arg as value
-Output string `type:"Flag" identifiers:"-o,--output"`
+Output string `identifiers:"-o,--output"`
 ```
 
 Usage:
@@ -333,22 +378,22 @@ Avoid ambiguous optionality. If a field is required, don't set a default:
 
 ```go
 // ✓ Clear: port is optional with default
-Port int `type:"Flag" identifiers:"-p,--port" default:"8080"`
+Port int `identifiers:"-p,--port" default:"8080"`
 
 // ✓ Clear: host is required
-Host string `type:"Flag" identifiers:"-h,--host"`
+Host string `identifiers:"-h,--host"`
 
 // ✗ Confusing: required:true is the default anyway
-Port int `type:"Flag" identifiers:"-p,--port" required:"true"`
+Port int `identifiers:"-p,--port" required:"true"`
 ```
 
-### 2. **Use Help Text for Context**
+### 2. **Use Description Text for Context**
 
-Every field deserves a `help` tag to guide users:
+Every field deserves a `description` tag to guide users:
 
 ```go
-Port int `type:"Flag" identifiers:"-p,--port" default:"8080" help:"TCP port to listen on"`
-Host string `type:"Flag" identifiers:"-h,--host" help:"Bind address (e.g., 0.0.0.0 or localhost)"`
+Port int `identifiers:"-p,--port" default:"8080" description:"TCP port to listen on"`
+Host string `identifiers:"-h,--host" description:"Bind address (e.g., 0.0.0.0 or localhost)"`
 ```
 
 ### 3. **Order Fields Logically**
@@ -356,15 +401,15 @@ Host string `type:"Flag" identifiers:"-h,--host" help:"Bind address (e.g., 0.0.0
 In the struct, group related fields together:
 
 ```go
-type ServeEntries struct {
+type ServeFlags struct {
 	// Connection settings
-	Host string `type:"Flag" identifiers:"-h,--host" default:"localhost"`
-	Port int    `type:"Flag" identifiers:"-p,--port" default:"8080"`
-	TLS  bool   `type:"Flag" identifiers:"--tls"`
+	Host string `identifiers:"-h,--host" default:"localhost"`
+	Port int    `identifiers:"-p,--port" default:"8080"`
+	TLS  bool   `identifiers:"--tls"`
 
 	// Logging settings
-	LogLevel string `type:"Flag" identifiers:"-l,--log-level" default:"info"`
-	Verbose  bool   `type:"Flag" identifiers:"-v,--verbose"`
+	LogLevel string `identifiers:"-l,--log-level" default:"info"`
+	Verbose  bool   `identifiers:"-v,--verbose"`
 }
 ```
 
@@ -410,13 +455,14 @@ props := argus.GenerationProps{
 
 | Task | Example |
 |------|---------|
-| **Create a required flag** | `Host string` \` `type:"Flag" identifiers:"-h,--host"` \` |
-| **Create an optional flag with default** | `Port int` \` `type:"Flag" identifiers:"-p" default:"8080"` \` |
-| **Create a boolean (presence) flag** | `Verbose bool` \` `type:"Flag" identifiers:"-v"` \` |
-| **Create a required positional arg** | `Name string` \` `type:"NextArg"` \` |
-| **Create an optional positional arg** | `Name string` \` `type:"NextArg" required:"false"` \` |
-| **Capture multiple flags** | `Tags []string` \` `type:"ArrayFlag" identifiers:"-t"` \` |
-| **Capture multiple positional args** | `Files []string` \` `type:"ArrayArg" start:"0" end:"-1"` \` |
+| **Create a required flag** | `Host string` \` `identifiers:"-h,--host"` \` in `Flags` |
+| **Create an optional flag with default** | `Port int` \` `identifiers:"-p" default:"8080"` \` in `Flags` |
+| **Create a boolean (presence) flag** | `Verbose bool` \` `identifiers:"-v"` \` in `Flags` |
+| **Create a required positional arg** | `Name string` in `Args`, no `position` tag |
+| **Create an optional positional arg** | `Name string` \` `required:"false"` \` in `Args` |
+| **Capture multiple flags** | `Tags []string` \` `identifiers:"-t"` \` in `Flags` |
+| **Capture multiple positional args** | `Files []string` \` `start:"0" end:"-1"` \` in `Args` |
+| **Access Print/Args in a callback** | add a `deps deps.Deps` field to the entries struct |
 | **Test with custom input** | `deps.Deps{Args: []string{...}, Print: func(s string) {...}}` |
 | **Suppress output in tests** | `Print: func(s string) {}` (no-op) |
 | **Localize messages** | Create `argus.Messages` with translated functions |

@@ -18,68 +18,87 @@ import (
 //
 // Both as flags and as positional arguments.
 
-// TypesAsFlagsEntries shows all scalar types used as Flag entries.
+// TypesAsFlagsFlags shows all scalar types used as Flag entries. Every
+// non-slice field in a Flags sub-struct is inferred as a Flag.
+type TypesAsFlagsFlags struct {
+	Name   string  `identifiers:"-n,--name" description:"person's name (string)"`
+	Age    int     `identifiers:"-a,--age" description:"person's age (int)"`
+	ID     int64   `identifiers:"--id" description:"unique identifier (int64)"`
+	Score  float64 `identifiers:"-s,--score" description:"numeric score (float64)"`
+	Active bool    `identifiers:"--active" description:"active status (bool)"`
+}
+
 type TypesAsFlagsEntries struct {
-	Name   string  `type:"Flag" identifiers:"-n,--name" description:"person's name (string)"`
-	Age    int     `type:"Flag" identifiers:"-a,--age" description:"person's age (int)"`
-	ID     int64   `type:"Flag" identifiers:"--id" description:"unique identifier (int64)"`
-	Score  float64 `type:"Flag" identifiers:"-s,--score" description:"numeric score (float64)"`
-	Active bool    `type:"Flag" identifiers:"--active" description:"active status (bool)"`
+	Flags TypesAsFlagsFlags
 }
 
 func showFlags(e TypesAsFlagsEntries) int {
 	fmt.Println(strings.Repeat("─", 40))
 	fmt.Println("  All scalar types via Flags:")
 	fmt.Println(strings.Repeat("─", 40))
-	fmt.Printf("  Name   (string):  %s\n", e.Name)
-	fmt.Printf("  Age    (int):     %d\n", e.Age)
-	fmt.Printf("  ID     (int64):   %d\n", e.ID)
-	fmt.Printf("  Score  (float64): %.2f\n", e.Score)
-	fmt.Printf("  Active (bool):    %v\n", e.Active)
+	fmt.Printf("  Name   (string):  %s\n", e.Flags.Name)
+	fmt.Printf("  Age    (int):     %d\n", e.Flags.Age)
+	fmt.Printf("  ID     (int64):   %d\n", e.Flags.ID)
+	fmt.Printf("  Score  (float64): %.2f\n", e.Flags.Score)
+	fmt.Printf("  Active (bool):    %v\n", e.Flags.Active)
 	fmt.Println(strings.Repeat("─", 40))
 	return 0
 }
 
-// TypesAsArgsEntries shows all non-bool scalar types used as positional NextArg.
+// TypesAsArgsArgs shows all non-bool scalar types used as positional
+// NextArg. Every non-slice field in an Args sub-struct without a
+// `position` tag is inferred as a NextArg.
+type TypesAsArgsArgs struct {
+	Label string  `description:"item label (string)"`
+	Count int     `description:"quantity (int)"`
+	Price float64 `description:"unit price (float64)"`
+}
+
 type TypesAsArgsEntries struct {
-	Label string  `type:"NextArg" description:"item label (string)"`
-	Count int     `type:"NextArg" description:"quantity (int)"`
-	Price float64 `type:"NextArg" description:"unit price (float64)"`
+	Args TypesAsArgsArgs
 }
 
 func showArgs(e TypesAsArgsEntries) int {
 	fmt.Println(strings.Repeat("─", 40))
 	fmt.Println("  Scalar types via NextArg:")
 	fmt.Println(strings.Repeat("─", 40))
-	fmt.Printf("  Label (string):  %s\n", e.Label)
-	fmt.Printf("  Count (int):     %d\n", e.Count)
-	fmt.Printf("  Price (float64): %.2f\n", e.Price)
+	fmt.Printf("  Label (string):  %s\n", e.Args.Label)
+	fmt.Printf("  Count (int):     %d\n", e.Args.Count)
+	fmt.Printf("  Price (float64): %.2f\n", e.Args.Price)
 	fmt.Println(strings.Repeat("─", 40))
 	return 0
 }
 
-// IntArrayEntries shows []int via ArrayArg.
+// IntArrayArgs shows []int via ArrayArg.
+type IntArrayArgs struct {
+	Numbers []int `start:"0" end:"-1" min_size:"1" description:"list of integers to sum"`
+}
+
 type IntArrayEntries struct {
-	Numbers []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"list of integers to sum"`
+	Args IntArrayArgs
 }
 
 func sumInts(e IntArrayEntries) int {
 	total := 0
-	for _, n := range e.Numbers {
+	for _, n := range e.Args.Numbers {
 		total += n
 	}
-	fmt.Printf("Numbers: %v\n", e.Numbers)
+	fmt.Printf("Numbers: %v\n", e.Args.Numbers)
 	fmt.Printf("Sum:     %d\n", total)
 	return 0
 }
 
-// StringArrayFlagEntries shows []string via ArrayFlag.
+// StringArrayFlagFlags shows []string via ArrayFlag.
+type StringArrayFlagFlags struct {
+	Hosts []string `identifiers:"-H,--host" min_size:"1" description:"hosts to ping (can be repeated)"`
+}
+
 type StringArrayFlagEntries struct {
-	Hosts []string `type:"ArrayFlag" identifiers:"-H,--host" min_size:"1" description:"hosts to ping (can be repeated)"`
+	Flags StringArrayFlagFlags
 }
 
 func ping(e StringArrayFlagEntries) int {
-	for _, h := range e.Hosts {
+	for _, h := range e.Flags.Hosts {
 		fmt.Printf("Pinging %s … ok\n", h)
 	}
 	return 0

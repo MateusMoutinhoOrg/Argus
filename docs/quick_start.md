@@ -25,12 +25,16 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
+type GreetArgs struct {
+	Name string `description:"The person's name"`
+}
+
 type GreetEntries struct {
-	Name string `type:"NextArg" help:"The person's name"`
+	Args GreetArgs
 }
 
 func greet(e GreetEntries) int {
-	fmt.Printf("Hello, %s!\n", e.Name)
+	fmt.Printf("Hello, %s!\n", e.Args.Name)
 	return 0
 }
 
@@ -67,19 +71,28 @@ go run main.go greet Alice
 
 ### 1. **Entries Struct**
 
-Each command receives an **entries struct** that defines which command-line arguments it accepts:
+Each command receives an **entries struct**. It's built out of two optional
+sub-structs — `Flags` for named flags, `Args` for positional arguments — plus
+an optional injected `deps.Deps` field:
 
 ```go
+type ServeFlags struct {
+	Host string `identifiers:"-h,--host"`
+	Port int    `identifiers:"-p,--port" default:"8080"`
+	TLS  bool   `identifiers:"--tls"`
+}
+
 type ServeEntries struct {
-	Host string `type:"Flag" identifiers:"-h,--host"`
-	Port int    `type:"Flag" identifiers:"-p,--port" default:"8080"`
-	TLS  bool   `type:"Flag" identifiers:"--tls"`
+	Flags ServeFlags
 }
 ```
 
-- `type:"Flag"` — This is a named flag (like `--host`).
-- `identifiers:"-h,--host"` — Short and long names for the flag.
-- `default:"8080"` — Optional; if not provided, use this value.
+- `Flags ServeFlags` — a struct field named `Flags` holds all named flags.
+- `identifiers:"-h,--host"` — short and long names for the flag.
+- `default:"8080"` — optional; if not provided, use this value.
+
+There is **no `type` tag** — Argus infers `Flag` vs `ArrayFlag` (in `Flags`) and
+`Arg` vs `NextArg` vs `ArrayArg` (in `Args`) automatically. See *Entry Types* below.
 
 ### 2. **Struct Tags**
 
@@ -87,28 +100,42 @@ Tags tell Argus how to extract values from the command line:
 
 | Tag | Purpose |
 |-----|---------|
-| `type` | How to read this field: `Flag`, `Arg`, `NextArg`, `ArrayFlag`, `ArrayArg` |
-| `identifiers` | Flag names, e.g. `-p,--port` |
-| `position` | For fixed positional args (e.g., `position:"0"`) |
+| `identifiers` | Flag names, e.g. `-p,--port` — presence of this tag (inside `Flags`) is what makes a field a flag |
+| `position` | For fixed positional args inside `Args` (e.g., `position:"0"`); presence makes a field an `Arg` instead of `NextArg` |
 | `required` | Is this field mandatory? Defaults to `"true"` |
 | `default` | Fallback value if missing; implies optional |
-| `help` | Description shown in help text |
+| `help` | **Deprecated.** Use `description` instead |
+| `description` | Description shown in help text and errors |
 
 ### 3. **Entry Types**
+
+Argus infers the entry type from **where** a field lives and **what shape** it has:
+
+| Kind        | Lives in | Inferred when                          |
+|-------------|----------|------------------------------------------|
+| `Flag`      | `Flags`  | non-slice field                          |
+| `ArrayFlag` | `Flags`  | slice field                              |
+| `NextArg`   | `Args`   | non-slice field, no `position` tag       |
+| `Arg`       | `Args`   | non-slice field, has a `position` tag    |
+| `ArrayArg`  | `Args`   | slice field                              |
 
 #### Flags (Named Arguments)
 
 ```go
-type BuildEntries struct {
+type BuildFlags struct {
 	// Regular flag with a value
-	Output string `type:"Flag" identifiers:"-o,--output" default:"a.out"`
+	Output string `identifiers:"-o,--output" default:"a.out"`
 	
 	// Boolean flag (presence-only)
-	Verbose bool `type:"Flag" identifiers:"-v,--verbose"`
+	Verbose bool `identifiers:"-v,--verbose"`
+}
+
+type BuildEntries struct {
+	Flags BuildFlags
 }
 
 func build(e BuildEntries) int {
-	fmt.Printf("Building to %s (verbose=%v)\n", e.Output, e.Verbose)
+	fmt.Printf("Building to %s (verbose=%v)\n", e.Flags.Output, e.Flags.Verbose)
 	return 0
 }
 ```
@@ -122,13 +149,17 @@ go run main.go build -o bin/app --verbose
 #### Positional Arguments
 
 ```go
+type AddArgs struct {
+	A float64 `description:"First number"`
+	B float64 `description:"Second number"`
+}
+
 type AddEntries struct {
-	A float64 `type:"NextArg" help:"First number"`
-	B float64 `type:"NextArg" help:"Second number"`
+	Args AddArgs
 }
 
 func add(e AddEntries) int {
-	fmt.Printf("%.1f + %.1f = %.1f\n", e.A, e.B, e.A+e.B)
+	fmt.Printf("%.1f + %.1f = %.1f\n", e.Args.A, e.Args.B, e.Args.A+e.Args.B)
 	return 0
 }
 ```
@@ -142,15 +173,20 @@ go run main.go add 10 20
 
 #### Array Arguments
 
-Repeated flags or multiple positional arguments:
+Repeated flags or multiple positional arguments, both inferred from a **slice type**:
 
 ```go
-type CollectEntries struct {
+type CollectFlags struct {
 	// Repeat the flag multiple times
-	Tags []string `type:"ArrayFlag" identifiers:"-t,--tag"`
-	
+	Tags []string `identifiers:"-t,--tag"`
+}
+type CollectArgs struct {
 	// Collect multiple positional args
-	Files []string `type:"ArrayArg" start:"0" end:"-1"`
+	Files []string `start:"0" end:"-1"`
+}
+type CollectEntries struct {
+	Flags CollectFlags
+	Args  CollectArgs
 }
 ```
 
@@ -175,18 +211,22 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
+type ServeFlags struct {
+	Host     string `identifiers:"-h,--host" required:"false" default:"localhost"`
+	Port     int    `identifiers:"-p,--port" default:"8080"`
+	TLS      bool   `identifiers:"--tls"`
+}
+
 type ServeEntries struct {
-	Host     string `type:"Flag" identifiers:"-h,--host" required:"false" default:"localhost"`
-	Port     int    `type:"Flag" identifiers:"-p,--port" default:"8080"`
-	TLS      bool   `type:"Flag" identifiers:"--tls"`
+	Flags ServeFlags
 }
 
 func serve(e ServeEntries) int {
 	scheme := "http"
-	if e.TLS {
+	if e.Flags.TLS {
 		scheme = "https"
 	}
-	fmt.Printf("Server running on %s://%s:%d\n", scheme, e.Host, e.Port)
+	fmt.Printf("Server running on %s://%s:%d\n", scheme, e.Flags.Host, e.Flags.Port)
 	return 0
 }
 

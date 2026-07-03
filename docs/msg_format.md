@@ -122,14 +122,20 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
+type BuildArgs struct {
+	Target string `description:"Build target (e.g., 'linux', 'windows')"`
+}
+type BuildFlags struct {
+	Output string `identifiers:"-o,--output" description:"Output file path"`
+	Debug  bool   `identifiers:"-d,--debug" description:"Enable debug symbols"`
+}
 type BuildEntries struct {
-	Target string `type:"NextArg" help:"Build target (e.g., 'linux', 'windows')"`
-	Output string `type:"Flag" identifiers:"-o,--output" help:"Output file path"`
-	Debug  bool   `type:"Flag" identifiers:"-d,--debug" help:"Enable debug symbols"`
+	Args  BuildArgs
+	Flags BuildFlags
 }
 
 func build(e BuildEntries) int {
-	fmt.Printf("Building for %s → %s (debug=%v)\n", e.Target, e.Output, e.Debug)
+	fmt.Printf("Building for %s → %s (debug=%v)\n", e.Args.Target, e.Flags.Output, e.Flags.Debug)
 	return 0
 }
 

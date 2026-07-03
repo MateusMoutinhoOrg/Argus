@@ -33,6 +33,36 @@ The native adapter:
 - Reads `os.Args[1:]` as the command arguments
 - Calls `fmt.Println()` for output
 
+## Auto-Injecting Deps into a Callback
+
+Besides passing `Deps` to `argus.New()`, you can also have Argus hand the same
+`Deps` value directly to a callback. Declare a field of type `deps.Deps`
+anywhere on the entries struct — it doesn't need to be exported — and Argus
+populates it before calling the callback:
+
+```go
+import "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
+
+type CommitFlags struct {
+	Message string `identifiers:"-m,--message" description:"commit message"`
+}
+
+type CommitEntries struct {
+	Flags CommitFlags
+	deps  deps.Deps // auto-injected; unexported is fine
+}
+
+func commit(e CommitEntries) int {
+	e.deps.Print("committed: " + e.Flags.Message)
+	return 0
+}
+```
+
+This is useful when a callback needs to print output or inspect the raw CLI
+args without importing `fmt`/`os` directly, which keeps it testable the same
+way `HandleCli` itself is tested — swap in a mock `Deps` and the callback's
+output goes through `Print` instead of straight to stdout.
+
 ## Testing with Custom Deps
 
 For unit tests, inject custom `Deps` to mock input and capture output:

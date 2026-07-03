@@ -6,7 +6,48 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unsafe"
+
+	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
+
+var depsType = reflect.TypeOf(deps.Deps{})
+
+// entryKind describes how a field is populated, inferred from its
+// containing struct (Args/Flags), its type, and its tags.
+type entryKind int
+
+const (
+	entryFlag entryKind = iota
+	entryArrayFlag
+	entryArg
+	entryNextArg
+	entryArrayArg
+)
+
+// classifyArgField infers the entry kind for a field declared in an Args struct:
+//   - slice type            -> ArrayArg
+//   - has a "position" tag  -> Arg
+//   - otherwise             -> NextArg
+func classifyArgField(field reflect.StructField) entryKind {
+	if field.Type.Kind() == reflect.Slice {
+		return entryArrayArg
+	}
+	if field.Tag.Get("position") != "" {
+		return entryArg
+	}
+	return entryNextArg
+}
+
+// classifyFlagField infers the entry kind for a field declared in a Flags struct:
+//   - slice type -> ArrayFlag
+//   - otherwise  -> Flag
+func classifyFlagField(field reflect.StructField) entryKind {
+	if field.Type.Kind() == reflect.Slice {
+		return entryArrayFlag
+	}
+	return entryFlag
+}
 
 type Callback struct {
 	Starter     string
@@ -64,7 +105,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 		}
 
 		// Validate struct field tags
-		if err := validateStructTags(paramType); err != nil {
+		if err := validateCallbackStruct(paramType); err != nil {
 			return 1, fmt.Errorf("callback for '%s': %w", cb.Starter, err)
 		}
 	}
@@ -124,15 +165,18 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	entriesPtr := reflect.New(entriesType)
 	entries := entriesPtr.Elem()
 
+	// Inject the Deps used by this Lib into any deps.Deps field (exported or not)
+	injectDeps(entries, entriesType, l.deps)
+
 	// First pass: extract flags from args, collect remaining as positional
-	positional, err := l.populateEntries(entries, entriesType, commandArgs, props.Messages)
+	positional, err := l.populateFlags(entries, entriesType, commandArgs, props.Messages)
 	if err != "" {
 		l.deps.Print(err)
 		return 1, nil
 	}
 
 	// Second pass: populate positional arguments
-	errMsg := l.populatePositional(entries, entriesType, positional, props.Messages)
+	errMsg := l.populateArgs(entries, entriesType, positional, props.Messages)
 	if errMsg != "" {
 		l.deps.Print(errMsg)
 		return 1, nil
@@ -150,52 +194,128 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	return int(results[0].Int()), nil
 }
 
-// populateEntries extracts flags from the argument list and returns the remaining positional args.
-func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, args []string, msgs Messages) ([]string, string) {
+// injectDeps finds a field of type deps.Deps on the callback struct (exported
+// or not) and populates it with the Lib's Deps, so callbacks can access
+// Args/Print without going through fmt/os directly.
+func injectDeps(entries reflect.Value, entriesType reflect.Type, d deps.Deps) {
+	for i := 0; i < entriesType.NumField(); i++ {
+		field := entriesType.Field(i)
+		if field.Type != depsType {
+			continue
+		}
+		target := entries.Field(i)
+		if target.CanSet() {
+			target.Set(reflect.ValueOf(d))
+			return
+		}
+		// Unexported field: bypass Go's reflect write protection.
+		ptr := unsafe.Pointer(target.UnsafeAddr())
+		reflect.NewAt(target.Type(), ptr).Elem().Set(reflect.ValueOf(d))
+		return
+	}
+}
+
+// findSubStruct locates a nested struct field ("Args" or "Flags") on the
+// top-level callback struct, returning its type/value and whether it exists.
+func findSubStruct(entries reflect.Value, entriesType reflect.Type, name string) (reflect.Value, reflect.Type, bool) {
+	field, ok := entriesType.FieldByName(name)
+	if !ok {
+		return reflect.Value{}, nil, false
+	}
+	return entries.FieldByName(name), field.Type, true
+}
+
+// populateFlags extracts flags from the argument list (via the Flags sub-struct,
+// if present) and returns the remaining positional args.
+func (l Lib) populateFlags(entries reflect.Value, entriesType reflect.Type, args []string, msgs Messages) ([]string, string) {
 	positional := []string{}
 	consumed := make(map[int]bool)
 
-	// First pass: extract all flags
-	for i := 0; i < entriesType.NumField(); i++ {
-		field := entriesType.Field(i)
-		entryType := field.Tag.Get("type")
+	flagsValue, flagsType, hasFlags := findSubStruct(entries, entriesType, "Flags")
 
-		if entryType == "Flag" {
-			identifiers := field.Tag.Get("identifiers")
-			if identifiers == "" {
-				continue
-			}
-			ids := strings.Split(identifiers, ",")
+	if hasFlags {
+		for i := 0; i < flagsType.NumField(); i++ {
+			field := flagsType.Field(i)
+			fieldValue := flagsValue.Field(i)
 
-			if field.Type.Kind() == reflect.Bool {
-				// Boolean presence flag
-				found := false
-				for j := 0; j < len(args); j++ {
-					if consumed[j] {
-						continue
-					}
-					for _, id := range ids {
-						if args[j] == id {
-							entries.Field(i).SetBool(true)
-							consumed[j] = true
-							found = true
+			switch classifyFlagField(field) {
+			case entryFlag:
+				identifiers := field.Tag.Get("identifiers")
+				if identifiers == "" {
+					continue
+				}
+				ids := strings.Split(identifiers, ",")
+
+				if field.Type.Kind() == reflect.Bool {
+					// Boolean presence flag
+					found := false
+					for j := 0; j < len(args); j++ {
+						if consumed[j] {
+							continue
+						}
+						for _, id := range ids {
+							if args[j] == id {
+								fieldValue.SetBool(true)
+								consumed[j] = true
+								found = true
+								break
+							}
+						}
+						if found {
 							break
 						}
 					}
-					if found {
-						break
-					}
-				}
 
-				if !found {
-					defaultVal := field.Tag.Get("default")
-					if defaultVal == "true" {
-						entries.Field(i).SetBool(true)
+					if !found {
+						defaultVal := field.Tag.Get("default")
+						if defaultVal == "true" {
+							fieldValue.SetBool(true)
+						}
+					}
+				} else {
+					// Value flag
+					found := false
+					for j := 0; j < len(args)-1; j++ {
+						if consumed[j] {
+							continue
+						}
+						for _, id := range ids {
+							if args[j] == id {
+								consumed[j] = true
+								consumed[j+1] = true
+								errMsg := setFieldValue(fieldValue, field.Type, args[j+1], field.Name, msgs)
+								if errMsg != "" {
+									return nil, errMsg
+								}
+								found = true
+								break
+							}
+						}
+						if found {
+							break
+						}
+					}
+
+					if !found {
+						// Apply default if present
+						defaultVal := field.Tag.Get("default")
+						if defaultVal != "" {
+							setFieldValue(fieldValue, field.Type, defaultVal, field.Name, msgs)
+						}
 					}
 				}
-			} else {
-				// Value flag
-				found := false
+			case entryArrayFlag:
+				identifiers := field.Tag.Get("identifiers")
+				if identifiers == "" {
+					continue
+				}
+				ids := strings.Split(identifiers, ",")
+
+				// Collect all occurrences
+				sliceType := field.Type
+				elemType := sliceType.Elem()
+				slice := reflect.MakeSlice(sliceType, 0, 0)
+
 				for j := 0; j < len(args)-1; j++ {
 					if consumed[j] {
 						continue
@@ -204,68 +324,28 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 						if args[j] == id {
 							consumed[j] = true
 							consumed[j+1] = true
-							errMsg := setFieldValue(entries.Field(i), field.Type, args[j+1], field.Name, msgs)
+							elem := reflect.New(elemType).Elem()
+							errMsg := setFieldValue(elem, elemType, args[j+1], field.Name, msgs)
 							if errMsg != "" {
 								return nil, errMsg
 							}
-							found = true
+							slice = reflect.Append(slice, elem)
 							break
 						}
 					}
-					if found {
-						break
-					}
 				}
 
-				if !found {
-					// Apply default if present
-					defaultVal := field.Tag.Get("default")
-					if defaultVal != "" {
-						setFieldValue(entries.Field(i), field.Type, defaultVal, field.Name, msgs)
-					}
+				if slice.Len() > 0 {
+					fieldValue.Set(slice)
 				}
-			}
-		} else if entryType == "ArrayFlag" {
-			identifiers := field.Tag.Get("identifiers")
-			if identifiers == "" {
-				continue
-			}
-			ids := strings.Split(identifiers, ",")
 
-			// Collect all occurrences
-			sliceType := field.Type
-			elemType := sliceType.Elem()
-			slice := reflect.MakeSlice(sliceType, 0, 0)
-
-			for j := 0; j < len(args)-1; j++ {
-				if consumed[j] {
-					continue
+				// Validate min_size / max_size
+				minSizeStr := field.Tag.Get("min_size")
+				maxSizeStr := field.Tag.Get("max_size")
+				errMsg := validateArraySize(fieldValue, field.Name, minSizeStr, maxSizeStr)
+				if errMsg != "" {
+					return nil, errMsg
 				}
-				for _, id := range ids {
-					if args[j] == id {
-						consumed[j] = true
-						consumed[j+1] = true
-						elem := reflect.New(elemType).Elem()
-						errMsg := setFieldValue(elem, elemType, args[j+1], field.Name, msgs)
-						if errMsg != "" {
-							return nil, errMsg
-						}
-						slice = reflect.Append(slice, elem)
-						break
-					}
-				}
-			}
-
-			if slice.Len() > 0 {
-				entries.Field(i).Set(slice)
-			}
-
-			// Validate min_size / max_size
-			minSizeStr := field.Tag.Get("min_size")
-			maxSizeStr := field.Tag.Get("max_size")
-			errMsg := validateArraySize(entries.Field(i), field.Name, minSizeStr, maxSizeStr)
-			if errMsg != "" {
-				return nil, errMsg
 			}
 		}
 	}
@@ -280,42 +360,45 @@ func (l Lib) populateEntries(entries reflect.Value, entriesType reflect.Type, ar
 	return positional, ""
 }
 
-// populatePositional fills Arg, NextArg, and ArrayArg fields from positional arguments.
-func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type, positional []string, msgs Messages) string {
+// populateArgs fills Arg, NextArg, and ArrayArg fields (via the Args sub-struct,
+// if present) from positional arguments.
+func (l Lib) populateArgs(entries reflect.Value, entriesType reflect.Type, positional []string, msgs Messages) string {
+	argsValue, argsType, hasArgs := findSubStruct(entries, entriesType, "Args")
+	if !hasArgs {
+		return ""
+	}
+
 	nextArgIdx := 0
 
-	for i := 0; i < entriesType.NumField(); i++ {
-		field := entriesType.Field(i)
-		entryType := field.Tag.Get("type")
+	for i := 0; i < argsType.NumField(); i++ {
+		field := argsType.Field(i)
+		fieldValue := argsValue.Field(i)
 		description := field.Tag.Get("description")
 
-		switch entryType {
-		case "Arg":
+		switch classifyArgField(field) {
+		case entryArg:
 			posStr := field.Tag.Get("position")
-			if posStr == "" {
-				return msgs.MissingArg(field.Name+" (missing position tag)", description, "")
-			}
 			pos, err := strconv.Atoi(posStr)
 			if err != nil {
 				return msgs.MissingArg(field.Name+" (invalid position)", description, posStr)
 			}
 			if pos < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[pos], field.Name, msgs)
+				errMsg := setFieldValue(fieldValue, field.Type, positional[pos], field.Name, msgs)
 				if errMsg != "" {
 					return errMsg
 				}
 			}
 
-		case "NextArg":
+		case entryNextArg:
 			if nextArgIdx < len(positional) {
-				errMsg := setFieldValue(entries.Field(i), field.Type, positional[nextArgIdx], field.Name, msgs)
+				errMsg := setFieldValue(fieldValue, field.Type, positional[nextArgIdx], field.Name, msgs)
 				if errMsg != "" {
 					return errMsg
 				}
 				nextArgIdx++
 			}
 
-		case "ArrayArg":
+		case entryArrayArg:
 			startStr := field.Tag.Get("start")
 			endStr := field.Tag.Get("end")
 
@@ -358,12 +441,12 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 				slice = reflect.Append(slice, elem)
 			}
 
-			entries.Field(i).Set(slice)
+			fieldValue.Set(slice)
 
 			// Validate min_size / max_size
 			minSizeStr := field.Tag.Get("min_size")
 			maxSizeStr := field.Tag.Get("max_size")
-			errMsg := validateArraySize(entries.Field(i), field.Name, minSizeStr, maxSizeStr)
+			errMsg := validateArraySize(fieldValue, field.Name, minSizeStr, maxSizeStr)
 			if errMsg != "" {
 				return errMsg
 			}
@@ -373,38 +456,47 @@ func (l Lib) populatePositional(entries reflect.Value, entriesType reflect.Type,
 	return ""
 }
 
-// validateRequired checks that all required fields have been populated.
+// validateRequired checks that all required fields (across Args and Flags) have been populated.
 func (l Lib) validateRequired(entries reflect.Value, entriesType reflect.Type, msgs Messages) string {
-	for i := 0; i < entriesType.NumField(); i++ {
-		field := entriesType.Field(i)
-		entryType := field.Tag.Get("type")
+	if flagsValue, flagsType, ok := findSubStruct(entries, entriesType, "Flags"); ok {
+		for i := 0; i < flagsType.NumField(); i++ {
+			field := flagsType.Field(i)
+			kind := classifyFlagField(field)
 
-		// Bool flags are always optional
-		if entryType == "Flag" && field.Type.Kind() == reflect.Bool {
-			continue
-		}
+			// Bool flags are always optional
+			if kind == entryFlag && field.Type.Kind() == reflect.Bool {
+				continue
+			}
 
-		// Check required status
-		required := field.Tag.Get("required")
-		defaultVal := field.Tag.Get("default")
+			required := field.Tag.Get("required")
+			defaultVal := field.Tag.Get("default")
+			if required == "false" || defaultVal != "" {
+				continue
+			}
 
-		// Default is required:true, a default value implies optional
-		if required == "false" || defaultVal != "" {
-			continue
-		}
-
-		// Check if field is at its zero value
-		fieldVal := entries.Field(i)
-		if fieldVal.IsZero() {
-			description := field.Tag.Get("description")
-			switch entryType {
-			case "Flag", "ArrayFlag":
+			if flagsValue.Field(i).IsZero() {
+				description := field.Tag.Get("description")
 				identifiers := field.Tag.Get("identifiers")
 				if identifiers != "" {
 					return msgs.MissingFlag(strings.Split(identifiers, ",")[0], description)
 				}
 				return msgs.MissingFlag(field.Name, description)
-			default:
+			}
+		}
+	}
+
+	if argsValue, argsType, ok := findSubStruct(entries, entriesType, "Args"); ok {
+		for i := 0; i < argsType.NumField(); i++ {
+			field := argsType.Field(i)
+
+			required := field.Tag.Get("required")
+			defaultVal := field.Tag.Get("default")
+			if required == "false" || defaultVal != "" {
+				continue
+			}
+
+			if argsValue.Field(i).IsZero() {
+				description := field.Tag.Get("description")
 				position := field.Tag.Get("position")
 				return msgs.MissingArg(field.Name, description, position)
 			}
@@ -497,45 +589,77 @@ func (l Lib) printGlobalHelp(props GenerationProps) {
 	l.deps.Print(fmt.Sprintf("\nRun '%s help <command>' for more information on a command.", appName))
 }
 
-// validateStructTags validates that all struct field tags are correctly formed.
-func validateStructTags(entriesType reflect.Type) error {
-	validTypes := map[string]bool{
-		"Flag":      true,
-		"ArrayFlag": true,
-		"Arg":       true,
-		"NextArg":   true,
-		"ArrayArg":  true,
-	}
-
+// validateCallbackStruct validates the shape of a callback parameter struct.
+// It may contain, at the top level, only:
+//   - a field named "Args"  (struct)  — positional arguments
+//   - a field named "Flags" (struct)  — named flags
+//   - a field of type deps.Deps (exported or not) — auto-injected dependencies
+func validateCallbackStruct(entriesType reflect.Type) error {
 	for i := 0; i < entriesType.NumField(); i++ {
 		field := entriesType.Field(i)
-		entryType := field.Tag.Get("type")
 
-		// type tag is required for exported fields
-		if entryType == "" {
-			return fmt.Errorf("field '%s' missing 'type' tag", field.Name)
+		if field.Type == depsType {
+			continue
 		}
 
-		// Check if type is valid
-		if !validTypes[entryType] {
-			return fmt.Errorf("field '%s' has invalid type '%s', must be one of: Flag, ArrayFlag, Arg, NextArg, ArrayArg", field.Name, entryType)
-		}
-
-		// Validate type-specific requirements
-		switch entryType {
-		case "Flag", "ArrayFlag":
-			identifiers := field.Tag.Get("identifiers")
-			if identifiers == "" {
-				return fmt.Errorf("field '%s' (type:%s) missing 'identifiers' tag", field.Name, entryType)
+		switch field.Name {
+		case "Args":
+			if field.Type.Kind() != reflect.Struct {
+				return fmt.Errorf("field 'Args' must be a struct, got %s", field.Type.Kind())
 			}
-		case "Arg":
-			position := field.Tag.Get("position")
-			if position == "" {
-				return fmt.Errorf("field '%s' (type:Arg) missing 'position' tag", field.Name)
+			if err := validateArgsStruct(field.Type); err != nil {
+				return err
 			}
+		case "Flags":
+			if field.Type.Kind() != reflect.Struct {
+				return fmt.Errorf("field 'Flags' must be a struct, got %s", field.Type.Kind())
+			}
+			if err := validateFlagsStruct(field.Type); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("field '%s' is not recognized; the callback struct may only contain 'Args', 'Flags', and an optional deps.Deps field", field.Name)
 		}
 	}
 
+	return nil
+}
+
+// validateArgsStruct validates the fields of an Args sub-struct.
+func validateArgsStruct(argsType reflect.Type) error {
+	for i := 0; i < argsType.NumField(); i++ {
+		field := argsType.Field(i)
+		if !field.IsExported() {
+			return fmt.Errorf("field '%s' in Args must be exported", field.Name)
+		}
+
+		if classifyArgField(field) == entryArg {
+			posStr := field.Tag.Get("position")
+			if _, err := strconv.Atoi(posStr); err != nil {
+				return fmt.Errorf("field '%s' (Arg) has an invalid 'position' tag %q", field.Name, posStr)
+			}
+		}
+	}
+	return nil
+}
+
+// validateFlagsStruct validates the fields of a Flags sub-struct.
+func validateFlagsStruct(flagsType reflect.Type) error {
+	for i := 0; i < flagsType.NumField(); i++ {
+		field := flagsType.Field(i)
+		if !field.IsExported() {
+			return fmt.Errorf("field '%s' in Flags must be exported", field.Name)
+		}
+
+		identifiers := field.Tag.Get("identifiers")
+		if identifiers == "" {
+			kind := "Flag"
+			if classifyFlagField(field) == entryArrayFlag {
+				kind = "ArrayFlag"
+			}
+			return fmt.Errorf("field '%s' (%s) missing 'identifiers' tag", field.Name, kind)
+		}
+	}
 	return nil
 }
 
@@ -571,9 +695,7 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 	maxFlagLen := 0
 	maxArgLen := 0
 
-	for i := 0; i < entriesType.NumField(); i++ {
-		field := entriesType.Field(i)
-		entryType := field.Tag.Get("type")
+	describe := func(field reflect.StructField) string {
 		helpMsg := field.Tag.Get("help")
 		if helpMsg == "" {
 			helpMsg = field.Tag.Get("description")
@@ -581,34 +703,56 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 		if helpMsg == "" {
 			helpMsg = "No description"
 		}
+		return helpMsg
+	}
 
-		required := field.Tag.Get("required")
-		defaultVal := field.Tag.Get("default")
-		isRequired := required != "false" && defaultVal == "" && !(entryType == "Flag" && field.Type.Kind() == reflect.Bool)
-
-		info := fieldInfo{desc: helpMsg, required: isRequired}
-
-		if entryType == "Flag" || entryType == "ArrayFlag" {
+	if flagsField, ok := entriesType.FieldByName("Flags"); ok {
+		flagsType := flagsField.Type
+		for i := 0; i < flagsType.NumField(); i++ {
+			field := flagsType.Field(i)
 			identifiers := field.Tag.Get("identifiers")
 			if identifiers == "" {
 				continue
 			}
-			info.name = identifiers
-			info.identifiers = identifiers
-			info.isFlag = true
+
+			required := field.Tag.Get("required")
+			defaultVal := field.Tag.Get("default")
+			isRequired := required != "false" && defaultVal == "" && field.Type.Kind() != reflect.Bool
+
+			info := fieldInfo{
+				name:        identifiers,
+				desc:        describe(field),
+				isFlag:      true,
+				required:    isRequired,
+				identifiers: identifiers,
+			}
 			if len(identifiers) > maxFlagLen {
 				maxFlagLen = len(identifiers)
 			}
-		} else if entryType == "Arg" || entryType == "NextArg" || entryType == "ArrayArg" {
-			info.name = field.Name
-			info.isFlag = false
+			infos = append(infos, info)
+		}
+	}
+
+	if argsField, ok := entriesType.FieldByName("Args"); ok {
+		argsType := argsField.Type
+		for i := 0; i < argsType.NumField(); i++ {
+			field := argsType.Field(i)
+
+			required := field.Tag.Get("required")
+			defaultVal := field.Tag.Get("default")
+			isRequired := required != "false" && defaultVal == ""
+
+			info := fieldInfo{
+				name:     field.Name,
+				desc:     describe(field),
+				isFlag:   false,
+				required: isRequired,
+			}
 			if len(field.Name) > maxArgLen {
 				maxArgLen = len(field.Name)
 			}
-		} else {
-			continue
+			infos = append(infos, info)
 		}
-		infos = append(infos, info)
 	}
 
 	hasFlags := false

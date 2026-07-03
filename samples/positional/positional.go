@@ -8,32 +8,43 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
 )
 
-// NextArgEntries demonstrates sequential positional argument consumption.
-// Each NextArg field binds to the next unclaimed positional argument
-// in the order the fields are declared.
+// NextArgArgs demonstrates sequential positional argument consumption.
+// Each field without a `position` tag consumes the next unclaimed
+// positional argument, in the order the fields are declared — Argus infers
+// NextArg for any non-slice field in an Args sub-struct that has no
+// `position` tag.
+type NextArgArgs struct {
+	Src  string `description:"source file path"`
+	Dest string `description:"destination file path"`
+}
+
 type NextArgEntries struct {
-	Src  string `type:"NextArg" description:"source file path"`
-	Dest string `type:"NextArg" description:"destination file path"`
+	Args NextArgArgs
 }
 
 func copyFile(e NextArgEntries) int {
-	fmt.Printf("Copying '%s' → '%s'\n", e.Src, e.Dest)
+	fmt.Printf("Copying '%s' → '%s'\n", e.Args.Src, e.Args.Dest)
 	return 0
 }
 
-// FixedArgEntries demonstrates fixed-position positional arguments.
-// Each Arg field binds to a specific positional index via the position tag.
+// FixedArgArgs demonstrates fixed-position positional arguments.
+// A `position` tag on a field in an Args sub-struct makes Argus infer Arg
+// instead of NextArg.
+type FixedArgArgs struct {
+	Filename string `position:"0" description:"path to the file to open"`
+	LineNum  int    `position:"1" description:"line number to navigate to"`
+	ColNum   int    `position:"2" required:"false" description:"column number (optional)"`
+}
+
 type FixedArgEntries struct {
-	Filename string `type:"Arg" position:"0" description:"path to the file to open"`
-	LineNum  int    `type:"Arg" position:"1" description:"line number to navigate to"`
-	ColNum   int    `type:"Arg" position:"2" required:"false" description:"column number (optional)"`
+	Args FixedArgArgs
 }
 
 func gotoLine(e FixedArgEntries) int {
-	if e.ColNum > 0 {
-		fmt.Printf("Opening '%s' at line %d, column %d\n", e.Filename, e.LineNum, e.ColNum)
+	if e.Args.ColNum > 0 {
+		fmt.Printf("Opening '%s' at line %d, column %d\n", e.Args.Filename, e.Args.LineNum, e.Args.ColNum)
 	} else {
-		fmt.Printf("Opening '%s' at line %d\n", e.Filename, e.LineNum)
+		fmt.Printf("Opening '%s' at line %d\n", e.Args.Filename, e.Args.LineNum)
 	}
 	return 0
 }
