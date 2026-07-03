@@ -181,6 +181,7 @@ func main() {
 	a := argus.New(native.New())
 
 	props := argus.GenerationProps{
+		Quiet: true,
 		Callbacks: []argus.Callback{
 			{Starter: "init", Callback: initRepo, Description: "Initialize an empty repository"},
 			{Starter: "clone", Callback: clone, Description: "Clone a repository"},
