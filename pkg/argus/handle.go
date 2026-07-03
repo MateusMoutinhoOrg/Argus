@@ -59,6 +59,10 @@ type GenerationProps struct {
 	Description string
 	Messages    Messages
 	Callbacks   []Callback
+	// Quiet opts the app into supporting a global --quiet/-q flag. When true
+	// and that flag is present anywhere in the CLI args, all output through
+	// deps.Deps.Print is suppressed. Defaults to false (feature disabled).
+	Quiet bool
 }
 
 func (l Lib) HandleCli(props GenerationProps) (int, error) {
@@ -111,6 +115,22 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	}
 
 	args := l.deps.Args
+
+	// Global quiet mode: strip --quiet/-q from anywhere in the args and
+	// suppress all further output via deps.Deps.Print.
+	if props.Quiet {
+		filtered := make([]string, 0, len(args))
+		for _, arg := range args {
+			if arg == "--quiet" || arg == "-q" {
+				if l.deps.Quiet != nil {
+					*l.deps.Quiet = true
+				}
+				continue
+			}
+			filtered = append(filtered, arg)
+		}
+		args = filtered
+	}
 
 	// Need at least program name + command
 	if len(args) < 2 {

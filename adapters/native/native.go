@@ -7,12 +7,16 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
-func Print(s string) {
-	fmt.Println(s)
-}
 func New() deps.Deps {
+	quiet := false
 	return deps.Deps{
-		Args:  os.Args,
-		Print: Print,
+		Args: os.Args,
+		Print: func(s string) {
+			if quiet {
+				return
+			}
+			fmt.Println(s)
+		},
+		Quiet: &quiet,
 	}
 }
