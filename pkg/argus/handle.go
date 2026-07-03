@@ -59,10 +59,15 @@ type GenerationProps struct {
 	Description string
 	Messages    Messages
 	Callbacks   []Callback
-	// Quiet opts the app into supporting a global --quiet/-q flag. When true
-	// and that flag is present anywhere in the CLI args, all output through
-	// deps.Deps.Print is suppressed. Defaults to false (feature disabled).
-	Quiet bool
+	// InvalidateQuietMode disables the global --quiet/-q flag. By default
+	// (false) the app supports --quiet/-q anywhere in the CLI args, which
+	// suppresses all further output through deps.Deps.Print. Set to true to
+	// turn this behavior off.
+	InvalidateQuietMode bool
+	// InvalidateHelpMode disables the built-in "help"/"--help"/"-h" handling.
+	// By default (false) the app supports these to print global or
+	// command-specific help. Set to true to turn this behavior off.
+	InvalidateHelpMode bool
 }
 
 func (l Lib) HandleCli(props GenerationProps) (int, error) {
@@ -118,7 +123,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 
 	// Global quiet mode: strip --quiet/-q from anywhere in the args and
 	// suppress all further output via deps.Deps.Print.
-	if props.Quiet {
+	if !props.InvalidateQuietMode {
 		filtered := make([]string, 0, len(args))
 		for _, arg := range args {
 			if arg == "--quiet" || arg == "-q" {
@@ -141,7 +146,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	command := args[1]
 	commandArgs := args[2:]
 
-	if command == "help" || command == "--help" || command == "-h" {
+	if !props.InvalidateHelpMode && (command == "help" || command == "--help" || command == "-h") {
 		if len(commandArgs) > 0 {
 			cmd := commandArgs[0]
 			for i := range props.Callbacks {
@@ -169,10 +174,12 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 		return 1, nil
 	}
 
-	for _, arg := range commandArgs {
-		if arg == "help" || arg == "--help" || arg == "-h" {
-			l.printCommandHelp(props, *matched)
-			return 0, nil
+	if !props.InvalidateHelpMode {
+		for _, arg := range commandArgs {
+			if arg == "help" || arg == "--help" || arg == "-h" {
+				l.printCommandHelp(props, *matched)
+				return 0, nil
+			}
 		}
 	}
 
