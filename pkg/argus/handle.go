@@ -13,6 +13,7 @@ import (
 type Callback struct {
 	Starter     string
 	Description string
+	Samples     []string
 	Callback    any
 }
 type GenerationProps struct {
@@ -692,6 +693,14 @@ func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 				padding := strings.Repeat(" ", maxFlagLen-len(info.name)+2)
 				l.deps.Print(fmt.Sprintf("  %s%s%s%s", info.name, padding, info.desc, required))
 			}
+		}
+	}
+
+	if len(cb.Samples) > 0 {
+		l.deps.Print("")
+		l.deps.Print("SAMPLES:")
+		for _, sample := range cb.Samples {
+			l.deps.Print(fmt.Sprintf("  %s %s %s", appName, cb.Starter, sample))
 		}
 	}
 }

@@ -144,12 +144,12 @@ func main() {
 
 	props := argus.GenerationProps{
 		Callbacks: []argus.Callback{
-			{Starter: "init", Callback: initRepo, Description: "Initialize an empty repository"},
-			{Starter: "clone", Callback: clone, Description: "Clone a repository"},
-			{Starter: "commit", Callback: commit, Description: "Record changes to the repository"},
-			{Starter: "add", Callback: add, Description: "Add file contents to the index"},
-			{Starter: "remote", Callback: remote, Description: "Manage set of tracked repositories"},
-			{Starter: "log", Callback: logCmd, Description: "Show commit logs"},
+			{Starter: "init", Callback: initRepo, Description: "Initialize an empty repository", Samples: []string{}},
+			{Starter: "clone", Callback: clone, Description: "Clone a repository", Samples: []string{"https://github.com/user/repo.git", "https://github.com/user/repo.git --depth 1"}},
+			{Starter: "commit", Callback: commit, Description: "Record changes to the repository", Samples: []string{`-m "initial commit"`, `-m "fix typo" --amend --author "Alice"`}},
+			{Starter: "add", Callback: add, Description: "Add file contents to the index", Samples: []string{"main.go utils.go README.md -v"}},
+			{Starter: "remote", Callback: remote, Description: "Manage set of tracked repositories", Samples: []string{"list", "add -n upstream -n mirror"}},
+			{Starter: "log", Callback: logCmd, Description: "Show commit logs", Samples: []string{"", "-n 5 --format oneline --all"}},
 		},
 	}
 

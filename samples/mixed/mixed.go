@@ -55,7 +55,7 @@ func main() {
 
 	props := argus.GenerationProps{
 		Callbacks: []argus.Callback{
-			{Starter: "deploy", Callback: deploy, Description: "Deploy a service to an environment"},
+			{Starter: "deploy", Callback: deploy, Description: "Deploy a service to an environment", Samples: []string{"api production --image api:v2.1 -r 3", "api staging --image api:latest --dry-run", "worker production --image worker:v1.0 --force -r 5"}},
 		},
 	}
 

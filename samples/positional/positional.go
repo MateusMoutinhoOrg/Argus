@@ -49,8 +49,8 @@ func main() {
 
 	props := argus.GenerationProps{
 		Callbacks: []argus.Callback{
-			{Starter: "copy", Callback: copyFile, Description: "Copy a file from source to destination"},
-			{Starter: "goto", Callback: gotoLine, Description: "Go to a specific line in a file"},
+			{Starter: "copy", Callback: copyFile, Description: "Copy a file from source to destination", Samples: []string{"readme.md /tmp/backup.md"}},
+			{Starter: "goto", Callback: gotoLine, Description: "Go to a specific line in a file", Samples: []string{"main.go 42", "main.go 42 10"}},
 		},
 	}
 

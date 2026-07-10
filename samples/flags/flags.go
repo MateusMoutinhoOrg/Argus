@@ -67,8 +67,8 @@ func main() {
 
 	props := argus.GenerationProps{
 		Callbacks: []argus.Callback{
-			{Starter: "serve", Callback: serve, Description: "Serve the application"},
-			{Starter: "status", Callback: status, Description: "Get the application status"},
+			{Starter: "serve", Callback: serve, Description: "Serve the application", Samples: []string{"--host 0.0.0.0", "--host 0.0.0.0 -p 9090 --tls", "-h 127.0.0.1 --log-level debug"}},
+			{Starter: "status", Callback: status, Description: "Get the application status", Samples: []string{"", "--verbose --format json"}},
 		},
 	}
 

@@ -80,10 +80,10 @@ func main() {
 
 	props := argus.GenerationProps{
 		Callbacks: []argus.Callback{
-			{Starter: "merge", Callback: merge, Description: "Merge multiple files together"},
-			{Starter: "swap", Callback: swap, Description: "Swap the contents of two files"},
-			{Starter: "tag", Callback: tag, Description: "Apply tags"},
-			{Starter: "average", Callback: average, Description: "Calculate the average of scores"},
+			{Starter: "merge", Callback: merge, Description: "Merge multiple files together", Samples: []string{"file1.txt file2.txt file3.txt"}},
+			{Starter: "swap", Callback: swap, Description: "Swap the contents of two files", Samples: []string{"left.txt right.txt"}},
+			{Starter: "tag", Callback: tag, Description: "Apply tags", Samples: []string{"-t bug -t urgent -t backend"}},
+			{Starter: "average", Callback: average, Description: "Calculate the average of scores", Samples: []string{"-s 9.5 -s 8.0 -s 7.2 -s 10.0"}},
 		},
 	}
 
