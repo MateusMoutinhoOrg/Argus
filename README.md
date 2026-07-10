@@ -21,7 +21,7 @@ A powerful, reflection-based CLI argument parser library for Go. Build structure
 Add Argus to your Go project:
 
 ```bash
-go get github.com/MateusMoutinhoOrg/Argus@v0.0.2
+go get github.com/MateusMoutinhoOrg/Argus@v0.0.5
 ```
 
 ## Quick Example
@@ -119,7 +119,7 @@ go run samples/custom_errors/custom_errors.go greet "Your Name"
 ## Installation
 
 ```bash
-go get github.com/MateusMoutinhoOrg/Argus@v0.0.2
+go get github.com/MateusMoutinhoOrg/Argus@v0.0.5
 ```
 
 ## Architecture Overview
