@@ -7,6 +7,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // This sample simulates a real-world git-like CLI tool with multiple
@@ -17,8 +18,8 @@ import (
 
 type InitEntries struct{}
 
-func initRepo(e InitEntries) int {
-	fmt.Println("Initialized empty repository in ./")
+func initRepo(e InitEntries, deps argus_dep.Deps) int {
+	deps.Print("Initialized empty repository in ./\n")
 	return 0
 }
 
@@ -29,10 +30,10 @@ type CloneEntries struct {
 	Depth int    `type:"Flag" identifiers:"--depth" required:"false" description:"depth of the shallow clone"`
 }
 
-func clone(e CloneEntries) int {
-	fmt.Printf("Cloning %s\n", e.URL)
+func clone(e CloneEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Cloning %s\n", e.URL))
 	if e.Depth > 0 {
-		fmt.Printf("  (shallow clone, depth=%d)\n", e.Depth)
+		deps.Print(fmt.Sprintf("  (shallow clone, depth=%d)\n", e.Depth))
 	}
 	return 0
 }
@@ -45,12 +46,12 @@ type CommitEntries struct {
 	Amend   bool   `type:"Flag" identifiers:"--amend" description:"amend the previous commit"`
 }
 
-func commit(e CommitEntries) int {
+func commit(e CommitEntries, deps argus_dep.Deps) int {
 	action := "Created"
 	if e.Amend {
 		action = "Amended"
 	}
-	fmt.Printf("%s commit: \"%s\" (author: %s)\n", action, e.Message, e.Author)
+	deps.Print(fmt.Sprintf("%s commit: \"%s\" (author: %s)\n", action, e.Message, e.Author))
 	return 0
 }
 
@@ -61,13 +62,13 @@ type AddEntries struct {
 	Verbose bool     `type:"Flag" identifiers:"-v,--verbose" description:"verbose output"`
 }
 
-func add(e AddEntries) int {
+func add(e AddEntries, deps argus_dep.Deps) int {
 	for _, f := range e.Files {
 		if e.Verbose {
-			fmt.Printf("  staging: %s\n", f)
+			deps.Print(fmt.Sprintf("  staging: %s\n", f))
 		}
 	}
-	fmt.Printf("Added %d file(s) to staging area.\n", len(e.Files))
+	deps.Print(fmt.Sprintf("Added %d file(s) to staging area.\n", len(e.Files)))
 	return 0
 }
 
@@ -78,24 +79,24 @@ type RemoteEntries struct {
 	Names  []string `type:"ArrayFlag" identifiers:"-n,--name" required:"false" description:"remote repository names"`
 }
 
-func remote(e RemoteEntries) int {
+func remote(e RemoteEntries, deps argus_dep.Deps) int {
 	switch e.Action {
 	case "list":
-		fmt.Println("Remote repositories:")
+		deps.Print("Remote repositories:\n")
 		names := []string{"origin", "upstream"}
 		for _, n := range names {
-			fmt.Printf("  • %s\n", n)
+			deps.Print(fmt.Sprintf("  • %s\n", n))
 		}
 	case "add":
 		if len(e.Names) == 0 {
-			fmt.Println("Error: --name required for 'add'")
+			deps.Print("Error: --name required for 'add'\n")
 			return 1
 		}
 		for _, n := range e.Names {
-			fmt.Printf("Added remote: %s\n", n)
+			deps.Print(fmt.Sprintf("Added remote: %s\n", n))
 		}
 	default:
-		fmt.Printf("Unknown remote action: %s\n", e.Action)
+		deps.Print(fmt.Sprintf("Unknown remote action: %s\n", e.Action))
 		return 1
 	}
 	return 0
@@ -109,18 +110,18 @@ type LogEntries struct {
 	All    bool   `type:"Flag" identifiers:"--all" description:"show commits from all branches"`
 }
 
-func logCmd(e LogEntries) int {
+func logCmd(e LogEntries, deps argus_dep.Deps) int {
 	scope := "current branch"
 	if e.All {
 		scope = "all branches"
 	}
-	fmt.Printf("Showing last %d commits (%s, format=%s)\n", e.Count, scope, e.Format)
-	fmt.Println(strings.Repeat("─", 50))
+	deps.Print(fmt.Sprintf("Showing last %d commits (%s, format=%s)\n", e.Count, scope, e.Format))
+	deps.Print(strings.Repeat("─", 50) + "\n")
 	for i := 1; i <= e.Count && i <= 3; i++ {
-		fmt.Printf("  %da1b2c3  feat: example commit #%d\n", i, i)
+		deps.Print(fmt.Sprintf("  %da1b2c3  feat: example commit #%d\n", i, i))
 	}
 	if e.Count > 3 {
-		fmt.Printf("  ... and %d more\n", e.Count-3)
+		deps.Print(fmt.Sprintf("  ... and %d more\n", e.Count-3))
 	}
 	return 0
 }

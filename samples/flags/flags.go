@@ -7,6 +7,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // ServeEntries demonstrates:
@@ -21,17 +22,17 @@ type ServeEntries struct {
 	LogLevel string `type:"Flag" identifiers:"-l,--log-level" default:"info" description:"logging level: debug, info, warn, error (default: info)"`
 }
 
-func serve(e ServeEntries) int {
+func serve(e ServeEntries, deps argus_dep.Deps) int {
 	scheme := "http"
 	if e.TLS {
 		scheme = "https"
 	}
-	fmt.Println(strings.Repeat("─", 40))
-	fmt.Printf("  Server starting…\n")
-	fmt.Printf("  Address:   %s://%s:%d\n", scheme, e.Host, e.Port)
-	fmt.Printf("  TLS:       %v\n", e.TLS)
-	fmt.Printf("  Log level: %s\n", e.LogLevel)
-	fmt.Println(strings.Repeat("─", 40))
+	deps.Print(strings.Repeat("─", 40) + "\n")
+	deps.Print("  Server starting…\n")
+	deps.Print(fmt.Sprintf("  Address:   %s://%s:%d\n", scheme, e.Host, e.Port))
+	deps.Print(fmt.Sprintf("  TLS:       %v\n", e.TLS))
+	deps.Print(fmt.Sprintf("  Log level: %s\n", e.LogLevel))
+	deps.Print(strings.Repeat("─", 40) + "\n")
 	return 0
 }
 
@@ -42,14 +43,14 @@ type StatusEntries struct {
 	Format  string `type:"Flag" identifiers:"-f,--format" default:"text"`
 }
 
-func status(e StatusEntries) int {
-	fmt.Printf("Status (format=%s, verbose=%v)\n", e.Format, e.Verbose)
+func status(e StatusEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Status (format=%s, verbose=%v)\n", e.Format, e.Verbose))
 	if e.Verbose {
-		fmt.Println("  PID:    12345")
-		fmt.Println("  Uptime: 3h42m")
-		fmt.Println("  Memory: 128 MB")
+		deps.Print("  PID:    12345\n")
+		deps.Print("  Uptime: 3h42m\n")
+		deps.Print("  Memory: 128 MB\n")
 	} else {
-		fmt.Println("  running ✓")
+		deps.Print("  running ✓\n")
 	}
 	return 0
 }

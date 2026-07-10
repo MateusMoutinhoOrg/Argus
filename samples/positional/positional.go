@@ -6,6 +6,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // NextArgEntries demonstrates sequential positional argument consumption.
@@ -16,8 +17,8 @@ type NextArgEntries struct {
 	Dest string `type:"NextArg" description:"destination file path"`
 }
 
-func copyFile(e NextArgEntries) int {
-	fmt.Printf("Copying '%s' → '%s'\n", e.Src, e.Dest)
+func copyFile(e NextArgEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Copying '%s' → '%s'\n", e.Src, e.Dest))
 	return 0
 }
 
@@ -29,11 +30,11 @@ type FixedArgEntries struct {
 	ColNum   int    `type:"Arg" position:"2" required:"false" description:"column number (optional)"`
 }
 
-func gotoLine(e FixedArgEntries) int {
+func gotoLine(e FixedArgEntries, deps argus_dep.Deps) int {
 	if e.ColNum > 0 {
-		fmt.Printf("Opening '%s' at line %d, column %d\n", e.Filename, e.LineNum, e.ColNum)
+		deps.Print(fmt.Sprintf("Opening '%s' at line %d, column %d\n", e.Filename, e.LineNum, e.ColNum))
 	} else {
-		fmt.Printf("Opening '%s' at line %d\n", e.Filename, e.LineNum)
+		deps.Print(fmt.Sprintf("Opening '%s' at line %d\n", e.Filename, e.LineNum))
 	}
 	return 0
 }

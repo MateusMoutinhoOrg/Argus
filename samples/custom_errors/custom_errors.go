@@ -6,6 +6,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // This sample demonstrates how to customize the error messages
@@ -17,8 +18,8 @@ type GreetEntries struct {
 	Name string `type:"NextArg" description:"nome da pessoa a cumprimentar"`
 }
 
-func greet(e GreetEntries) int {
-	fmt.Printf("Olá, %s! Bem-vindo ao sistema.\n", e.Name)
+func greet(e GreetEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Olá, %s! Bem-vindo ao sistema.\n", e.Name))
 	return 0
 }
 
@@ -27,8 +28,8 @@ type MathEntries struct {
 	B float64 `type:"Flag" identifiers:"-b" description:"segundo número"`
 }
 
-func add(e MathEntries) int {
-	fmt.Printf("%.2f + %.2f = %.2f\n", e.A, e.B, e.A+e.B)
+func add(e MathEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("%.2f + %.2f = %.2f\n", e.A, e.B, e.A+e.B))
 	return 0
 }
 

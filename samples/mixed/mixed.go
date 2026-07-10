@@ -7,6 +7,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // DeployEntries demonstrates combining positional args and flags
@@ -23,22 +24,22 @@ type DeployEntries struct {
 	Force    bool   `type:"Flag" identifiers:"-f,--force" description:"force deployment even if health checks fail"`
 }
 
-func deploy(e DeployEntries) int {
-	fmt.Println(strings.Repeat("═", 45))
-	fmt.Println("  DEPLOYMENT PLAN")
-	fmt.Println(strings.Repeat("═", 45))
-	fmt.Printf("  Service:     %s\n", e.Service)
-	fmt.Printf("  Environment: %s\n", e.Environment)
-	fmt.Printf("  Image:       %s\n", e.Image)
-	fmt.Printf("  Replicas:    %d\n", e.Replicas)
-	fmt.Printf("  Dry run:     %v\n", e.DryRun)
-	fmt.Printf("  Force:       %v\n", e.Force)
-	fmt.Println(strings.Repeat("═", 45))
+func deploy(e DeployEntries, deps argus_dep.Deps) int {
+	deps.Print(strings.Repeat("═", 45) + "\n")
+	deps.Print("  DEPLOYMENT PLAN\n")
+	deps.Print(strings.Repeat("═", 45) + "\n")
+	deps.Print(fmt.Sprintf("  Service:     %s\n", e.Service))
+	deps.Print(fmt.Sprintf("  Environment: %s\n", e.Environment))
+	deps.Print(fmt.Sprintf("  Image:       %s\n", e.Image))
+	deps.Print(fmt.Sprintf("  Replicas:    %d\n", e.Replicas))
+	deps.Print(fmt.Sprintf("  Dry run:     %v\n", e.DryRun))
+	deps.Print(fmt.Sprintf("  Force:       %v\n", e.Force))
+	deps.Print(strings.Repeat("═", 45) + "\n")
 
 	if e.DryRun {
-		fmt.Println("  ⚠  Dry run — no changes applied.")
+		deps.Print("  ⚠  Dry run — no changes applied.\n")
 	} else {
-		fmt.Println("  ✓  Deployment submitted!")
+		deps.Print("  ✓  Deployment submitted!\n")
 	}
 	return 0
 }

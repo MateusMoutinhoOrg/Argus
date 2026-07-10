@@ -7,6 +7,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // This sample demonstrates every supported scalar type:
@@ -27,16 +28,16 @@ type TypesAsFlagsEntries struct {
 	Active bool    `type:"Flag" identifiers:"--active" description:"active status (bool)"`
 }
 
-func showFlags(e TypesAsFlagsEntries) int {
-	fmt.Println(strings.Repeat("─", 40))
-	fmt.Println("  All scalar types via Flags:")
-	fmt.Println(strings.Repeat("─", 40))
-	fmt.Printf("  Name   (string):  %s\n", e.Name)
-	fmt.Printf("  Age    (int):     %d\n", e.Age)
-	fmt.Printf("  ID     (int64):   %d\n", e.ID)
-	fmt.Printf("  Score  (float64): %.2f\n", e.Score)
-	fmt.Printf("  Active (bool):    %v\n", e.Active)
-	fmt.Println(strings.Repeat("─", 40))
+func showFlags(e TypesAsFlagsEntries, deps argus_dep.Deps) int {
+	deps.Print(strings.Repeat("─", 40) + "\n")
+	deps.Print("  All scalar types via Flags:\n")
+	deps.Print(strings.Repeat("─", 40) + "\n")
+	deps.Print(fmt.Sprintf("  Name   (string):  %s\n", e.Name))
+	deps.Print(fmt.Sprintf("  Age    (int):     %d\n", e.Age))
+	deps.Print(fmt.Sprintf("  ID     (int64):   %d\n", e.ID))
+	deps.Print(fmt.Sprintf("  Score  (float64): %.2f\n", e.Score))
+	deps.Print(fmt.Sprintf("  Active (bool):    %v\n", e.Active))
+	deps.Print(strings.Repeat("─", 40) + "\n")
 	return 0
 }
 
@@ -47,14 +48,14 @@ type TypesAsArgsEntries struct {
 	Price float64 `type:"NextArg" description:"unit price (float64)"`
 }
 
-func showArgs(e TypesAsArgsEntries) int {
-	fmt.Println(strings.Repeat("─", 40))
-	fmt.Println("  Scalar types via NextArg:")
-	fmt.Println(strings.Repeat("─", 40))
-	fmt.Printf("  Label (string):  %s\n", e.Label)
-	fmt.Printf("  Count (int):     %d\n", e.Count)
-	fmt.Printf("  Price (float64): %.2f\n", e.Price)
-	fmt.Println(strings.Repeat("─", 40))
+func showArgs(e TypesAsArgsEntries, deps argus_dep.Deps) int {
+	deps.Print(strings.Repeat("─", 40) + "\n")
+	deps.Print("  Scalar types via NextArg:\n")
+	deps.Print(strings.Repeat("─", 40) + "\n")
+	deps.Print(fmt.Sprintf("  Label (string):  %s\n", e.Label))
+	deps.Print(fmt.Sprintf("  Count (int):     %d\n", e.Count))
+	deps.Print(fmt.Sprintf("  Price (float64): %.2f\n", e.Price))
+	deps.Print(strings.Repeat("─", 40) + "\n")
 	return 0
 }
 
@@ -63,13 +64,13 @@ type IntArrayEntries struct {
 	Numbers []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"list of integers to sum"`
 }
 
-func sumInts(e IntArrayEntries) int {
+func sumInts(e IntArrayEntries, deps argus_dep.Deps) int {
 	total := 0
 	for _, n := range e.Numbers {
 		total += n
 	}
-	fmt.Printf("Numbers: %v\n", e.Numbers)
-	fmt.Printf("Sum:     %d\n", total)
+	deps.Print(fmt.Sprintf("Numbers: %v\n", e.Numbers))
+	deps.Print(fmt.Sprintf("Sum:     %d\n", total))
 	return 0
 }
 
@@ -78,9 +79,9 @@ type StringArrayFlagEntries struct {
 	Hosts []string `type:"ArrayFlag" identifiers:"-H,--host" min_size:"1" description:"hosts to ping (can be repeated)"`
 }
 
-func ping(e StringArrayFlagEntries) int {
+func ping(e StringArrayFlagEntries, deps argus_dep.Deps) int {
 	for _, h := range e.Hosts {
-		fmt.Printf("Pinging %s … ok\n", h)
+		deps.Print(fmt.Sprintf("Pinging %s … ok\n", h))
 	}
 	return 0
 }
