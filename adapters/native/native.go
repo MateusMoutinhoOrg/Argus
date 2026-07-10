@@ -7,12 +7,27 @@ import (
 	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
-func Print(s string) {
-	fmt.Println(s)
+type nativeDeps struct {
+	args  []string
+	quiet bool
 }
+
+func (n *nativeDeps) GetArgs() []string {
+	return n.args
+}
+
+func (n *nativeDeps) Print(s string) {
+	if !n.quiet {
+		fmt.Println(s)
+	}
+}
+
+func (n *nativeDeps) SetQuiet() {
+	n.quiet = true
+}
+
 func New() deps.Deps {
-	return deps.Deps{
-		Args:  os.Args,
-		Print: Print,
+	return &nativeDeps{
+		args: os.Args,
 	}
 }

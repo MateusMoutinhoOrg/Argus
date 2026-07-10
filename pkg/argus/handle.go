@@ -59,8 +59,8 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 		}
 
 		if numIn == 2 {
-			depsType := reflect.TypeOf(deps.Deps{})
-			if cbType.In(1) != depsType {
+			depsType := reflect.TypeOf((*deps.Deps)(nil)).Elem()
+			if !cbType.In(1).Implements(depsType) && cbType.In(1) != depsType {
 				return 1, fmt.Errorf("callback for '%s' second parameter must be deps.Deps, got %s", cb.Starter, cbType.In(1))
 			}
 		}
@@ -79,7 +79,7 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 		}
 	}
 
-	args := l.deps.Args
+	args := l.deps.GetArgs()
 
 	// Need at least program name + command
 	if len(args) < 2 {
@@ -476,8 +476,8 @@ func validateArraySize(field reflect.Value, fieldName string, minSizeStr string,
 
 func (l Lib) printGlobalHelp(props GenerationProps) {
 	appName := props.Name
-	if appName == "" && len(l.deps.Args) > 0 {
-		appName = filepath.Base(l.deps.Args[0])
+	if appName == "" && len(l.deps.GetArgs()) > 0 {
+		appName = filepath.Base(l.deps.GetArgs()[0])
 	}
 	if appName == "" {
 		appName = "app"
@@ -555,8 +555,8 @@ func validateStructTags(entriesType reflect.Type) error {
 
 func (l Lib) printCommandHelp(props GenerationProps, cb Callback) {
 	appName := props.Name
-	if appName == "" && len(l.deps.Args) > 0 {
-		appName = filepath.Base(l.deps.Args[0])
+	if appName == "" && len(l.deps.GetArgs()) > 0 {
+		appName = filepath.Base(l.deps.GetArgs()[0])
 	}
 	if appName == "" {
 		appName = "app"
