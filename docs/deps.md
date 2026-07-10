@@ -89,21 +89,36 @@ func TestGreet(t *testing.T) {
 
 ## Quiet Mode: Suppressing Output
 
-Silence all output by providing a no-op `Print` function:
+Argus has a built-in quiet system. When the user passes `--quiet` or `-q` on the command line, Argus calls `SetQuiet()` on your `Deps` before parsing, and every implementation of `Print` is expected to become a no-op from that point on. The native adapter already does this.
+
+The quiet flag is stripped from the arguments before parsing, so it never interferes with your flags or positional arguments.
+
+Configure it through `GenerationProps`:
 
 ```go
-testDeps := deps.Deps{
-	Args: []string{"serve", "--port", "9090"},
-	Print: func(s string) {
-		// Do nothing — suppress output
-	},
+props := argus.GenerationProps{
+	DisableQuiet:     false,                        // true disables the quiet system (default: false)
+	QuietIdentifiers: []string{"--quiet", "-q"},    // flags that trigger quiet mode (this is the default)
+	// ...
 }
-
-a := argus.New(&testDeps)
-exitCode, _ := a.HandleCli(props)
 ```
 
-This is useful when:
+When implementing your own `Deps`, honor the contract:
+
+```go
+type myDeps struct {
+	quiet bool
+}
+
+func (d *myDeps) SetQuiet()      { d.quiet = true }
+func (d *myDeps) Print(s string) {
+	if !d.quiet {
+		fmt.Println(s)
+	}
+}
+```
+
+In tests you can also silence output unconditionally with a no-op `Print` — useful when:
 - Testing only the exit code or return behavior
 - You don't care about console output
 - You want cleaner test logs

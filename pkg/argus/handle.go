@@ -16,10 +16,12 @@ type Callback struct {
 	Callback    any
 }
 type GenerationProps struct {
-	Name        string
-	Description string
-	Messages    Messages
-	Callbacks   []Callback
+	Name             string
+	DisableQuiet     bool     // if true, the quiet system will not work (default: false)
+	QuietIdentifiers []string // the quiet flags to set quiet mode (default: ["--quiet", "-q"])
+	Description      string
+	Messages         Messages
+	Callbacks        []Callback
 }
 
 func (l Lib) HandleCli(props GenerationProps) (int, error) {
@@ -80,6 +82,33 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	}
 
 	args := l.deps.GetArgs()
+
+	// Quiet mode: strip quiet flags from the args and silence all output
+	if !props.DisableQuiet {
+		quietIdentifiers := props.QuietIdentifiers
+		if len(quietIdentifiers) == 0 {
+			quietIdentifiers = []string{"--quiet", "-q"}
+		}
+
+		filtered := args[:0:0]
+		for i, arg := range args {
+			isQuiet := false
+			if i > 0 {
+				for _, id := range quietIdentifiers {
+					if arg == id {
+						isQuiet = true
+						break
+					}
+				}
+			}
+			if isQuiet {
+				l.deps.SetQuiet()
+			} else {
+				filtered = append(filtered, arg)
+			}
+		}
+		args = filtered
+	}
 
 	// Need at least program name + command
 	if len(args) < 2 {

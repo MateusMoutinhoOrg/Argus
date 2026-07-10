@@ -15,6 +15,7 @@ A powerful, reflection-based CLI argument parser library for Go. Build structure
 - **Localization & customization** — Override all user-facing messages for localization or custom branding
 - **Dependency injection** — Mock CLI input and output for easy testing without `os.Args`
 - **Clean error handling** — Structured validation errors that guide users to correct usage
+- **Quiet mode** — Built-in `--quiet`/`-q` flag suppresses all output while preserving exit codes; configurable via `DisableQuiet` and `QuietIdentifiers`
 ## Quick Installation
 
 Add Argus to your Go project:

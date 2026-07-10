@@ -226,6 +226,31 @@ func main() {
 }
 ```
 
+## Quiet Mode
+
+Every Argus application supports **quiet mode** out of the box. Passing `--quiet` (or `-q`) anywhere on the command line suppresses all output — help text, error messages, and anything your callbacks print through `deps.Print`. Exit codes are unaffected, so scripts can still detect failures:
+
+```bash
+myapp serve --host 0.0.0.0 --quiet   # runs silently
+myapp badcommand -q                  # prints nothing, exits with code 1
+```
+
+The quiet flag is consumed by Argus before parsing, so it never conflicts with your positional arguments.
+
+You can customize the behavior via `GenerationProps`:
+
+```go
+props := argus.GenerationProps{
+	DisableQuiet:     true,                  // turn the quiet system off entirely
+	QuietIdentifiers: []string{"--silent"},  // use different flag names (default: ["--quiet", "-q"])
+	// ...
+}
+```
+
+If one of your commands needs `-q` for its own flag, either set `QuietIdentifiers` to something that doesn't collide (e.g. `[]string{"--quiet"}`) or set `DisableQuiet: true`.
+
+> **Note:** Output is only suppressed when it goes through `deps.Print`. Direct calls to `fmt.Println` in your callbacks bypass quiet mode — always print through the injected `Deps`.
+
 ## Next Steps
 
 - **See samples** — Check `samples/` in the repository for real examples
