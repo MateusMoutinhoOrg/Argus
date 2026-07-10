@@ -32,28 +32,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Parsing Flow
 
-1. **Struct tag inspection** — Reflects on callback function parameter struct; reads `type:`, `identifiers:`, `position:`, `required:`, `default:`, `description:`, etc.
-2. **Flag extraction** — First pass collects named flags (Flag, ArrayFlag), marking consumed args
-3. **Positional population** — Second pass fills Arg/NextArg/ArrayArg from remaining args
-4. **Validation** — Checks required fields, applies defaults, validates array sizes
-5. **Callback invocation** — Calls user function with populated struct; captures exit code
+1. **Struct shape inspection** — Reflects on the callback's parameter struct, which may contain an `Args` sub-struct (positional args), a `Flags` sub-struct (named flags), and/or a `deps.Deps` field. There is no `type:` tag; entry kind is **inferred** from where a field lives, whether it's a slice, and whether it has a `position:` tag.
+2. **Deps injection** — Any `deps.Deps` field (exported or not) is populated with the Lib's Deps via reflection (unexported fields are set through an `unsafe` bypass).
+3. **Flag extraction** — First pass collects named flags from the `Flags` sub-struct (Flag/ArrayFlag), marking consumed args
+4. **Positional population** — Second pass fills the `Args` sub-struct (Arg/NextArg/ArrayArg) from remaining args
+5. **Validation** — Checks required fields, applies defaults, validates array sizes
+6. **Callback invocation** — Calls user function with populated struct; captures exit code
 
 ### Tag System
 
-Each field declares **how** it's populated:
-- `type:"Flag"` — Named flag with value; bool fields are presence-only flags
-- `type:"ArrayFlag"` — Repeated flag building a slice
-- `type:"Arg"` — Fixed positional index (`position:"0"`)
-- `type:"NextArg"` — Sequential positional consumption
-- `type:"ArrayArg"` — Range of positional args (`start:`, `end:`)
+There is no `type:` tag. Argus **infers** how a field is populated from where it
+lives and its shape:
+
+| Kind        | Lives in | Inferred when                            |
+|-------------|----------|--------------------------------------------|
+| `Flag`      | `Flags`  | non-slice field (requires `identifiers:`)  |
+| `ArrayFlag` | `Flags`  | slice field (requires `identifiers:`)      |
+| `NextArg`   | `Args`   | non-slice field, no `position:` tag        |
+| `Arg`       | `Args`   | non-slice field, has a `position:` tag     |
+| `ArrayArg`  | `Args`   | slice field                                |
+
+bool fields in `Flags` are presence-only flags. `Args` and `Flags` are both
+optional on the top-level callback struct — declare whichever you need.
 
 Modifier tags:
-- `identifiers:"-p,--port"` — Flag aliases
+- `identifiers:"-p,--port"` — Flag aliases (required on every `Flags` field)
 - `required:"false"` — Optional; uses zero value if missing
 - `default:"8080"` — Optional with fallback; implies `required:"false"`
 - `description:"..."` — Description for help text and error messages (user-facing docs)
 - `help:"Description"` — **Deprecated.** Use `description` instead.
 - `min_size:`, `max_size:` — Array validation
+
+A `deps.Deps` field (any name, exported or not) is auto-injected by Argus so a
+callback can call `e.deps.Print(...)` instead of using `fmt`/`os` directly.
 
 See `docs/entries.md` for the full API reference and `docs/flags_and_args.md` for comprehensive patterns.
 
@@ -105,8 +116,8 @@ This project currently has no tests. To validate changes:
 
 ### Adding a New Entry Type
 
-1. Add the `type` name and handling logic to `handle.go:populateEntries()`
-2. Add validation and help formatting support
+1. Add the inference rule to `classifyArgField`/`classifyFlagField` in `handle.go`, and wire the new `entryKind` case into `populateFlags`/`populateArgs`/`validateRequired`/`printCommandHelp`
+2. Add validation support in `validateArgsStruct`/`validateFlagsStruct`
 3. Create a sample in `samples/` demonstrating the feature
 4. Update `docs/entries.md` with tag syntax and examples
 
@@ -130,7 +141,7 @@ See `docs/flags_and_args.md` for best practices on writing descriptions.
 
 - **Reflection over codegen** — Struct tags and reflection enable declarative binding without build-time code generation
 - **Upfront validation** — Callback signatures are validated when `HandleCli()` is called (dev-time errors), not at parse time
-- **Dependency injection via adapters** — `Deps` allows testing without `os.Args` and mocking output
+- **Dependency injection via adapters** — `Deps` allows testing without `os.Args` and mocking output; the same `Deps` can also be auto-injected into a callback's `deps.Deps` field, exported or not
 - **No implicit subcommand nesting** — The library handles one level; samples show patterns for deeper hierarchies
 - **Arrays are open-ended by default** — `ArrayArg` and `ArrayFlag` consume all available args; use `start:`, `end:`, `min_size:`, `max_size:` to constrain
 
