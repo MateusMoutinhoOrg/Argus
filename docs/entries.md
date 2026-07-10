@@ -102,8 +102,8 @@ type AddEntries struct {
     B float64 `type:"NextArg" description:"second number"`
 }
 
-func sum(e AddEntries) int {
-    fmt.Println(e.A + e.B)
+func sum(e AddEntries, deps argus_dep.Deps) int {
+    deps.Print(fmt.Sprintf("%v\n", e.A + e.B))
     return 0
 }
 ```
@@ -125,8 +125,8 @@ type SumEntries struct {
     C float64 `type:"Arg" position:"2" description:"third number"`
 }
 
-func sum(e SumEntries) int {
-    fmt.Println(e.A + e.B + e.C)
+func sum(e SumEntries, deps argus_dep.Deps) int {
+    deps.Print(fmt.Sprintf("%v\n", e.A + e.B + e.C))
     return 0
 }
 ```
@@ -149,9 +149,9 @@ type PrintEntries struct {
     Nums []int `type:"ArrayArg" start:"0" end:"-1" min_size:"1" description:"numbers to print"`
 }
 
-func printAll(e PrintEntries) int {
+func printAll(e PrintEntries, deps argus_dep.Deps) int {
     for _, n := range e.Nums {
-        fmt.Println(n)
+        deps.Print(fmt.Sprintf("%v\n", n))
     }
     return 0
 }
@@ -176,8 +176,8 @@ type AddEntries struct {
     B float64 `type:"Flag" identifiers:"-b,--b" description:"second number"`
 }
 
-func sum(e AddEntries) int {
-    fmt.Println(e.A + e.B)
+func sum(e AddEntries, deps argus_dep.Deps) int {
+    deps.Print(fmt.Sprintf("%v\n", e.A + e.B))
     return 0
 }
 ```
@@ -198,9 +198,9 @@ type BuildEntries struct {
     Output  string `type:"Flag" identifiers:"-o,--output" default:"a.out" description:"output file path (default: a.out)"`
 }
 
-func build(e BuildEntries) int {
+func build(e BuildEntries, deps argus_dep.Deps) int {
     if e.Verbose {
-        fmt.Println("building ->", e.Output)
+        deps.Print(fmt.Sprintf("building -> %s\n", e.Output))
     }
     return 0
 }
@@ -222,9 +222,9 @@ type CollectEntries struct {
     Nums []float64 `type:"ArrayFlag" identifiers:"-a,--a" min_size:"1" max_size:"-1" description:"numbers to collect (can be repeated)"`
 }
 
-func collect(e CollectEntries) int {
+func collect(e CollectEntries, deps argus_dep.Deps) int {
     for _, n := range e.Nums {
-        fmt.Println(n)
+        deps.Print(fmt.Sprintf("%v\n", n))
     }
     return 0
 }

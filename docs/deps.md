@@ -7,9 +7,10 @@ Argus uses **dependency injection** to separate command logic from CLI mechanics
 The core interface is minimal:
 
 ```go
-type Deps struct {
-	Args  []string              // Command-line arguments
-	Print func(s string)        // Output function
+type Deps interface {
+	GetArgs() []string         // Command-line arguments
+	Print(s string)            // Output function (respects quiet mode)
+	SetQuiet()                 // Set the application in quiet mode
 }
 ```
 

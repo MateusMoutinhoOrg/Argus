@@ -120,6 +120,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type BuildEntries struct {
@@ -128,8 +129,8 @@ type BuildEntries struct {
 	Debug  bool   `type:"Flag" identifiers:"-d,--debug" help:"Enable debug symbols"`
 }
 
-func build(e BuildEntries) int {
-	fmt.Printf("Building for %s → %s (debug=%v)\n", e.Target, e.Output, e.Debug)
+func build(e BuildEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Building for %s → %s (debug=%v)\n", e.Target, e.Output, e.Debug))
 	return 0
 }
 

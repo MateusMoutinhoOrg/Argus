@@ -23,14 +23,15 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type GreetEntries struct {
 	Name string `type:"NextArg" help:"The person's name"`
 }
 
-func greet(e GreetEntries) int {
-	fmt.Printf("Hello, %s!\n", e.Name)
+func greet(e GreetEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Hello, %s!\n", e.Name))
 	return 0
 }
 
@@ -107,8 +108,8 @@ type BuildEntries struct {
 	Verbose bool `type:"Flag" identifiers:"-v,--verbose"`
 }
 
-func build(e BuildEntries) int {
-	fmt.Printf("Building to %s (verbose=%v)\n", e.Output, e.Verbose)
+func build(e BuildEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Building to %s (verbose=%v)\n", e.Output, e.Verbose))
 	return 0
 }
 ```
@@ -127,8 +128,8 @@ type AddEntries struct {
 	B float64 `type:"NextArg" help:"Second number"`
 }
 
-func add(e AddEntries) int {
-	fmt.Printf("%.1f + %.1f = %.1f\n", e.A, e.B, e.A+e.B)
+func add(e AddEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("%.1f + %.1f = %.1f\n", e.A, e.B, e.A+e.B))
 	return 0
 }
 ```
@@ -173,6 +174,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type ServeEntries struct {
@@ -181,19 +183,19 @@ type ServeEntries struct {
 	TLS      bool   `type:"Flag" identifiers:"--tls"`
 }
 
-func serve(e ServeEntries) int {
+func serve(e ServeEntries, deps argus_dep.Deps) int {
 	scheme := "http"
 	if e.TLS {
 		scheme = "https"
 	}
-	fmt.Printf("Server running on %s://%s:%d\n", scheme, e.Host, e.Port)
+	deps.Print(fmt.Sprintf("Server running on %s://%s:%d\n", scheme, e.Host, e.Port))
 	return 0
 }
 
 type VersionEntries struct{}
 
-func version(e VersionEntries) int {
-	fmt.Println("v1.0.0")
+func version(e VersionEntries, deps argus_dep.Deps) int {
+	deps.Print("v1.0.0\n")
 	return 0
 }
 

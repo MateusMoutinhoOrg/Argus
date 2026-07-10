@@ -13,11 +13,11 @@ type ServeEntries struct {
 ```
 
 ### Callback
-A user-defined function that executes when a command is matched. It receives a single entries struct populated with parsed CLI arguments and returns an int exit code.
+A user-defined function that executes when a command is matched. It receives an entries struct populated with parsed CLI arguments as the first parameter and an optional `deps` (dependency injection) as the second parameter, and returns an int exit code.
 
 ```go
-func serve(e ServeEntries) int {
-	fmt.Printf("Server on %s:%d\n", e.Host, e.Port)
+func serve(e ServeEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Server on %s:%d\n", e.Host, e.Port))
 	return 0 // exit code
 }
 ```

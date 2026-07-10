@@ -34,6 +34,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type ServeEntries struct {
@@ -42,12 +43,12 @@ type ServeEntries struct {
 	TLS  bool   `type:"Flag" identifiers:"--tls" description:"enable HTTPS"`
 }
 
-func serve(e ServeEntries) int {
+func serve(e ServeEntries, deps argus_dep.Deps) int {
 	scheme := "http"
 	if e.TLS {
 		scheme = "https"
 	}
-	fmt.Printf("Listening on %s://%s:%d\n", scheme, e.Host, e.Port)
+	deps.Print(fmt.Sprintf("Listening on %s://%s:%d\n", scheme, e.Host, e.Port))
 	return 0
 }
 
@@ -155,8 +156,8 @@ type DeployEntries struct {
 	               description:"force deployment without confirmation"`
 }
 
-func deploy(e DeployEntries) int {
-	fmt.Printf("Deploying to %s (force=%v)\n", e.Env, e.Force)
+func deploy(e DeployEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Deploying to %s (force=%v)\n", e.Env, e.Force))
 	return 0
 }
 ```
@@ -183,8 +184,8 @@ type CopyEntries struct {
 	               description:"overwrite destination without prompting"`
 }
 
-func copy(e CopyEntries) int {
-	fmt.Printf("Copying %s → %s\n", e.Src, e.Dst)
+func copy(e CopyEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Copying %s → %s\n", e.Src, e.Dst))
 	return 0
 }
 ```
