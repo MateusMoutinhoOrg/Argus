@@ -6,6 +6,7 @@ import (
 
 	"github.com/MateusMoutinhoOrg/Argus/adapters/native"
 	"github.com/MateusMoutinhoOrg/Argus/pkg/argus"
+	argus_dep "github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 // ArrayArgEntries demonstrates ArrayArg — collecting a contiguous range
@@ -16,10 +17,10 @@ type ArrayArgEntries struct {
 	Files []string `type:"ArrayArg" start:"0" end:"-1" min_size:"2" description:"list of files to merge"`
 }
 
-func merge(e ArrayArgEntries) int {
-	fmt.Printf("Merging %d files:\n", len(e.Files))
+func merge(e ArrayArgEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Merging %d files:\n", len(e.Files)))
 	for i, f := range e.Files {
-		fmt.Printf("  [%d] %s\n", i+1, f)
+		deps.Print(fmt.Sprintf("  [%d] %s\n", i+1, f))
 	}
 	return 0
 }
@@ -30,8 +31,8 @@ type BoundedArrayEntries struct {
 	Pair []string `type:"ArrayArg" start:"0" end:"2" min_size:"2" max_size:"2" description:"two files to swap"`
 }
 
-func swap(e BoundedArrayEntries) int {
-	fmt.Printf("Swapping: '%s' ↔ '%s'\n", e.Pair[0], e.Pair[1])
+func swap(e BoundedArrayEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Swapping: '%s' ↔ '%s'\n", e.Pair[0], e.Pair[1]))
 	return 0
 }
 
@@ -43,10 +44,10 @@ type ArrayFlagEntries struct {
 	Tags []string `type:"ArrayFlag" identifiers:"-t,--tag" min_size:"1" max_size:"-1" description:"labels to apply (can be repeated)"`
 }
 
-func tag(e ArrayFlagEntries) int {
-	fmt.Printf("Tags applied (%d):\n", len(e.Tags))
+func tag(e ArrayFlagEntries, deps argus_dep.Deps) int {
+	deps.Print(fmt.Sprintf("Tags applied (%d):\n", len(e.Tags)))
 	for _, t := range e.Tags {
-		fmt.Printf("  • %s\n", t)
+		deps.Print(fmt.Sprintf("  • %s\n", t))
 	}
 	return 0
 }
