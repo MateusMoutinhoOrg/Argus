@@ -57,14 +57,14 @@ type ArrayFlagNumEntries struct {
 	Scores []float64 `type:"ArrayFlag" identifiers:"-s,--score" min_size:"1" description:"numeric scores (can be repeated)"`
 }
 
-func average(e ArrayFlagNumEntries) int {
+func average(e ArrayFlagNumEntries, deps argus_dep.Deps) int {
 	sum := 0.0
 	for _, s := range e.Scores {
 		sum += s
 	}
 	avg := sum / float64(len(e.Scores))
-	fmt.Printf("Scores: %v\n", e.Scores)
-	fmt.Printf("Average: %.2f\n", avg)
+	deps.Print(fmt.Sprintf("Scores: %v\n", e.Scores))
+	deps.Print(fmt.Sprintf("Average: %.2f\n", avg))
 	return 0
 }
 
