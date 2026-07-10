@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/MateusMoutinhoOrg/Argus/pkg/deps"
 )
 
 type Callback struct {
@@ -46,13 +48,21 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 			return 1, fmt.Errorf("callback for '%s' is not a function", cb.Starter)
 		}
 
-		if cbType.NumIn() != 1 {
-			return 1, fmt.Errorf("callback for '%s' must accept exactly one argument, got %d", cb.Starter, cbType.NumIn())
+		numIn := cbType.NumIn()
+		if numIn < 1 || numIn > 2 {
+			return 1, fmt.Errorf("callback for '%s' must accept 1 or 2 arguments, got %d", cb.Starter, numIn)
 		}
 
 		paramType := cbType.In(0)
 		if paramType.Kind() != reflect.Struct {
-			return 1, fmt.Errorf("callback for '%s' parameter must be a struct, got %s", cb.Starter, paramType.Kind())
+			return 1, fmt.Errorf("callback for '%s' first parameter must be a struct, got %s", cb.Starter, paramType.Kind())
+		}
+
+		if numIn == 2 {
+			depsType := reflect.TypeOf(deps.Deps{})
+			if cbType.In(1) != depsType {
+				return 1, fmt.Errorf("callback for '%s' second parameter must be deps.Deps, got %s", cb.Starter, cbType.In(1))
+			}
 		}
 
 		if cbType.NumOut() != 1 {
@@ -146,7 +156,11 @@ func (l Lib) HandleCli(props GenerationProps) (int, error) {
 	}
 
 	// Call the callback
-	results := callbackValue.Call([]reflect.Value{entries})
+	callArgs := []reflect.Value{entries}
+	if callbackType.NumIn() == 2 {
+		callArgs = append(callArgs, reflect.ValueOf(l.deps))
+	}
+	results := callbackValue.Call(callArgs)
 	return int(results[0].Int()), nil
 }
 
